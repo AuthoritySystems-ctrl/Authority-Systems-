@@ -1,4 +1,9 @@
-import { useState, useCallback } from "react";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const supabase = createClient(
+  "https://eysjofloowkuzpivxcpx.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5c2pvZmxvb3drdXpwaXZ4Y3B4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2OTA2MzEsImV4cCI6MjA5ODI2NjYzMX0.VEtOdjcY1M5TTnEkw6MLA526FxM0iMNtilkzg4SSZB0"
+);import { useState, useCallback } from "react";
 
 const C = {
   purple: "#5C0F4E", purpleDark: "#3D0A34", purpleLight: "#7A1A68",
