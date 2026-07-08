@@ -81,6 +81,8 @@ const nowTime = () => new Date().toLocaleTimeString([], { hour: "2-digit", minut
 const stockColor = (s) => s === 0 ? C.red : s <= 3 ? C.orange : C.green;
 const orderTotal = (order) => order.reduce((s, o) => s + o.price * o.qty, 0);
 const CATEGORIES = ["Starters", "Mains", "Desserts", "Drinks"];
+const bufToB64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
+const b64ToBuf = (b64) => Uint8Array.from(atob(b64), c => c.charCodeAt(0)).buffer;
 
 const Logo = ({ size = 32 }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -116,6 +118,14 @@ const TopBar = ({ user }) => (
 const PinLogin = ({ onLogin }) => {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
+  const [hasBiometric, setHasBiometric] = useState(false);
+  const [bioBusy, setBioBusy] = useState(false);
+
+  useEffect(() => {
+    try {
+      setHasBiometric(!!localStorage.getItem("authorityBiometric"));
+    } catch (e) {}
+  }, []);
 
   useEffect(() => {
     if (pin.length === 4) {
@@ -126,6 +136,30 @@ const PinLogin = ({ onLogin }) => {
       setError("");
     }
   }, [pin]);
+
+  const useBiometric = async () => {
+    setBioBusy(true);
+    setError("");
+    try {
+      const stored = JSON.parse(localStorage.getItem("authorityBiometric"));
+      const assertion = await navigator.credentials.get({
+        publicKey: {
+          challenge: crypto.getRandomValues(new Uint8Array(32)),
+          allowCredentials: [{ id: b64ToBuf(stored.credentialId), type: "public-key" }],
+          userVerification: "required",
+          timeout: 60000,
+        },
+      });
+      if (assertion) {
+        const staff = STAFF.find(s => s.id === stored.staffId);
+        if (staff) onLogin(staff);
+        else setError("Fingerprint not linked to a known staff member");
+      }
+    } catch (e) {
+      setError("Fingerprint login failed — use PIN instead");
+    }
+    setBioBusy(false);
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: C.purpleDark, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20, gap: 28 }}>
@@ -139,29 +173,81 @@ const PinLogin = ({ onLogin }) => {
             </div>
           ))}
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, maxWidth: 230, margin: "0 auto 14px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, maxWidth: 230, margin: "0 auto 10px" }}>
           {[1,2,3,4,5,6,7,8,9,"",0,"⌫"].map((k, i) => (
             <button key={i} onClick={() => { if (k === "⌫") setPin(p => p.slice(0,-1)); else if (k !== "" && pin.length < 4) setPin(p => p + k); }} style={{ height: 50, borderRadius: 10, border: k === "" ? "none" : `1px solid ${C.purpleLight}`, background: k === "" ? "transparent" : C.purple, color: C.gold, fontSize: 20, fontWeight: 700, cursor: k === "" ? "default" : "pointer" }}>{k}</button>
           ))}
         </div>
-        {error && <p style={{ color: C.redLight, textAlign: "center", marginBottom: 8, fontSize: 12 }}>{error}</p>}
+        <div style={{ textAlign: "center", marginBottom: 10 }}>
+          <button onClick={() => setPin("")} style={{ background: "none", border: "none", color: C.goldPale, fontSize: 12, cursor: "pointer", textDecoration: "underline" }}>Clear</button>
+        </div>
+        {hasBiometric && (
+          <Btn onClick={useBiometric} disabled={bioBusy} color={C.purpleLight} textColor={C.goldPale} style={{ width: "100%", marginBottom: 8 }}>
+            {bioBusy ? "Checking fingerprint..." : "👆 Use Fingerprint"}
+          </Btn>
+        )}
+        {error && <p style={{ color: C.redLight, textAlign: "center", fontSize: 12 }}>{error}</p>}
       </div>
     </div>
   );
 };
 
-const ClockInScreen = ({ staff, onClockIn, onCancel }) => (
-  <div style={{ minHeight: "100vh", background: C.purpleDark, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20, gap: 24 }}>
-    <Logo size={44} />
-    <div style={{ width: "100%", maxWidth: 320, textAlign: "center" }}>
-      <p style={{ color: C.goldPale, fontSize: 14, marginBottom: 4 }}>Welcome back,</p>
-      <h2 style={{ color: C.gold, margin: "0 0 4px", fontSize: 22 }}>{staff.name}</h2>
-      <p style={{ color: C.gray300, fontSize: 12, textTransform: "uppercase", letterSpacing: 1, marginBottom: 28 }}>{staff.role}</p>
-      <Btn onClick={onClockIn} style={{ width: "100%", padding: "16px" }}>🕐 Start My Shift</Btn>
-      <button onClick={onCancel} style={{ background: "none", border: "none", color: C.gray500, fontSize: 12, marginTop: 16, cursor: "pointer" }}>Not you? Go back</button>
+const ClockInScreen = ({ staff, onClockIn, onCancel }) => {
+  const [supported, setSupported] = useState(false);
+  const [bioStatus, setBioStatus] = useState("idle");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        if (window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()) {
+          setSupported(true);
+        }
+      } catch (e) {}
+    })();
+  }, []);
+
+  const enableBiometric = async () => {
+    setBioStatus("working");
+    try {
+      const cred = await navigator.credentials.create({
+        publicKey: {
+          challenge: crypto.getRandomValues(new Uint8Array(32)),
+          rp: { name: "Authority Systems" },
+          user: { id: new TextEncoder().encode(staff.id), name: staff.name, displayName: staff.name },
+          pubKeyCredParams: [{ alg: -7, type: "public-key" }, { alg: -257, type: "public-key" }],
+          authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+          timeout: 60000,
+          attestation: "none",
+        },
+      });
+      if (cred) {
+        localStorage.setItem("authorityBiometric", JSON.stringify({ credentialId: bufToB64(cred.rawId), staffId: staff.id }));
+        setBioStatus("done");
+      }
+    } catch (e) {
+      setBioStatus("error");
+    }
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: C.purpleDark, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20, gap: 24 }}>
+      <Logo size={44} />
+      <div style={{ width: "100%", maxWidth: 320, textAlign: "center" }}>
+        <p style={{ color: C.goldPale, fontSize: 14, marginBottom: 4 }}>Welcome back,</p>
+        <h2 style={{ color: C.gold, margin: "0 0 4px", fontSize: 22 }}>{staff.name}</h2>
+        <p style={{ color: C.gray300, fontSize: 12, textTransform: "uppercase", letterSpacing: 1, marginBottom: 28 }}>{staff.role}</p>
+        <Btn onClick={onClockIn} style={{ width: "100%", padding: "16px" }}>🕐 Start My Shift</Btn>
+        {supported && bioStatus !== "done" && (
+          <button onClick={enableBiometric} disabled={bioStatus === "working"} style={{ background: "none", border: `1px solid ${C.purpleLight}`, color: C.goldPale, fontSize: 12, marginTop: 14, padding: "10px 12px", borderRadius: 8, cursor: "pointer", width: "100%" }}>
+            {bioStatus === "working" ? "Follow the prompt..." : bioStatus === "error" ? "Try Fingerprint Again" : "👆 Enable Fingerprint Login on This Device"}
+          </button>
+        )}
+        {bioStatus === "done" && <p style={{ color: C.greenLight, fontSize: 12, marginTop: 12 }}>✓ Fingerprint enabled for next time</p>}
+        <button onClick={onCancel} style={{ background: "none", border: "none", color: C.gray500, fontSize: 12, marginTop: 16, cursor: "pointer" }}>Not you? Go back</button>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const SidesPicker = ({ item, sides, onConfirm, onCancel }) => {
   const [chosen, setChosen] = useState([]);
