@@ -3,7 +3,26 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const supabase = createClient(
   "https://eysjofloowkuzpivxcpx.supabase.co",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5c2pvZmxvb3drdXpwaXZ4Y3B4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2OTA2MzEsImV4cCI6MjA5ODI2NjYzMX0.VEtOdjcY1M5TTnEkw6MLA526FxM0iMNtilkzg4SSZB0"
-);import { useState, useCallback } from "react";
+);
+
+import { useState, useCallback, useEffect } from "react";
+
+const tableToRow = (t) => ({
+  id: t.id, status: t.status, guests: t.guests, waiter_id: t.waiterId,
+  order_data: t.order, order_sent_at: t.orderSentAt, opened_at: t.openedAt,
+  reservation: t.reservation, is_takeaway: t.isTakeaway,
+  takeaway_number: t.takeawayNumber, customer_name: t.customerName || null,
+});
+const rowToTable = (r) => ({
+  id: r.id, status: r.status, guests: r.guests, waiterId: r.waiter_id,
+  order: r.order_data || [], orderSentAt: r.order_sent_at, openedAt: r.opened_at,
+  reservation: r.reservation, isTakeaway: r.is_takeaway,
+  takeawayNumber: r.takeaway_number, customerName: r.customer_name,
+});
+const menuToRow = (m) => ({ id: m.id, name: m.name, category: m.category, price: m.price, stock: m.stock, has_sides: m.hasSides, sides_required: m.sidesRequired });
+const rowToMenu = (r) => ({ id: r.id, name: r.name, category: r.category, price: r.price, stock: r.stock, hasSides: r.has_sides, sidesRequired: r.sides_required });
+const sideToRow = (s) => ({ id: s.id, name: s.name, stock: s.stock });
+const rowToSide = (r) => ({ id: r.id, name: r.name, stock: r.stock });
 
 const C = {
   purple: "#5C0F4E", purpleDark: "#3D0A34", purpleLight: "#7A1A68",
@@ -60,7 +79,9 @@ const fmt = (n) => `$${Number(n).toFixed(2)}`;
 const nowTime = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 const stockColor = (s) => s === 0 ? C.red : s <= 3 ? C.orange : C.green;
 const orderTotal = (order) => order.reduce((s, o) => s + o.price * o.qty, 0);
-const CATEGORIES = ["Starters", "Mains", "Desserts", "Drinks"];const Logo = ({ size = 32 }) => (
+const CATEGORIES = ["Starters", "Mains", "Desserts", "Drinks"];
+
+const Logo = ({ size = 32 }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
     <div style={{ width: size, height: size, background: C.gold, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: size * 0.55, color: C.purple, fontFamily: "serif", boxShadow: "0 2px 8px rgba(0,0,0,0.3)" }}>A</div>
     <div>
@@ -214,7 +235,9 @@ const TakeawayModal = ({ onConfirm, onCancel, existingCount }) => {
       </div>
     </div>
   );
-};const OrderPanel = ({ activeTable, setActiveTable, tables, setTables, menu, sides, userId, addNotification, onBack, showBillButton = true }) => {
+};
+
+const OrderPanel = ({ activeTable, setActiveTable, tables, setTables, menu, sides, userId, addNotification, onBack, showBillButton = true }) => {
   const [selectedCat, setSelectedCat] = useState("Starters");
   const [sidesPicker, setSidesPicker] = useState(null);
 
@@ -334,7 +357,9 @@ const TakeawayModal = ({ onConfirm, onCancel, existingCount }) => {
       </div>
     </div>
   );
-};const WaiterView = ({ tables, setTables, menu, sides, user, addNotification }) => {
+};
+
+const WaiterView = ({ tables, setTables, menu, sides, user, addNotification }) => {
   const [view, setView] = useState("tables");
   const [activeTable, setActiveTable] = useState(null);
   const [openingTable, setOpeningTable] = useState(null);
@@ -496,7 +521,9 @@ const KitchenView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
       </div>
     </div>
   );
-};const CashierView = ({ tables, setTables, user }) => {
+};
+
+const CashierView = ({ tables, setTables, user }) => {
   const [selectedTable, setSelectedTable] = useState(null);
   const billTables = tables.filter(t => t.status === "bill");
   const processPay = (tableId) => {
@@ -594,7 +621,9 @@ const KitchenView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
       </div>
     </div>
   );
-};const FloorPlan = ({ tables, setTables, canReserve, addNotification }) => {
+};
+
+const FloorPlan = ({ tables, setTables, canReserve, addNotification }) => {
   const [selected, setSelected] = useState(null);
   const [reserveModal, setReserveModal] = useState(null);
   const [showTakeaway, setShowTakeaway] = useState(false);
@@ -931,6 +960,48 @@ export default function App() {
   const [menu, setMenu] = useState(INITIAL_MENU);
   const [sides, setSides] = useState(SIDES);
   const [notification, setNotification] = useState(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [tRes, mRes, sRes] = await Promise.all([
+          supabase.from("tables").select("*").order("id"),
+          supabase.from("menu_items").select("*").order("id"),
+          supabase.from("sides").select("*").order("id"),
+        ]);
+        if (tRes.data?.length) setTables(tRes.data.map(rowToTable));
+        if (mRes.data?.length) setMenu(mRes.data.map(rowToMenu));
+        if (sRes.data?.length) setSides(sRes.data.map(rowToSide));
+      } catch (e) {
+        console.error("Load failed", e);
+      } finally {
+        setLoaded(true);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!loaded) return;
+    (async () => {
+      const { error } = await supabase.from("tables").upsert(tables.map(tableToRow));
+      if (error) console.error("Save tables failed", error);
+      const currentIds = tables.map(t => t.id);
+      const { data: takeawayRows } = await supabase.from("tables").select("id").gte("id", 100);
+      const toDelete = (takeawayRows || []).filter(r => !currentIds.includes(r.id)).map(r => r.id);
+      if (toDelete.length) await supabase.from("tables").delete().in("id", toDelete);
+    })();
+  }, [tables, loaded]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    supabase.from("menu_items").upsert(menu.map(menuToRow)).then(({ error }) => { if (error) console.error("Save menu failed", error); });
+  }, [menu, loaded]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    supabase.from("sides").upsert(sides.map(sideToRow)).then(({ error }) => { if (error) console.error("Save sides failed", error); });
+  }, [sides, loaded]);
 
   const addNotification = useCallback((msg) => {
     setNotification(msg);
@@ -952,4 +1023,4 @@ export default function App() {
       <button onClick={() => setUser(null)} style={{ position: "fixed", bottom: 16, right: 16, zIndex: 500, background: C.purple, border: `2px solid ${C.gold}`, borderRadius: 50, color: C.gold, fontWeight: 700, fontSize: 11, cursor: "pointer", padding: "7px 13px", boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}>Logout</button>
     </div>
   );
-                                                             }
+}
