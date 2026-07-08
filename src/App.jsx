@@ -5,7 +5,7 @@ const supabase = createClient(
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5c2pvZmxvb3drdXpwaXZ4Y3B4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2OTA2MzEsImV4cCI6MjA5ODI2NjYzMX0.VEtOdjcY1M5TTnEkw6MLA526FxM0iMNtilkzg4SSZB0"
 );
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 
 const tableToRow = (t) => ({
   id: t.id, status: t.status, guests: t.guests, waiter_id: t.waiterId,
@@ -72,6 +72,7 @@ const STAFF = [
   { id: "w2", name: "Tendai", role: "waiter", pin: "2345" },
   { id: "k1", name: "Chef Moyo", role: "kitchen", pin: "3456" },
   { id: "c1", name: "Rudo", role: "cashier", pin: "4567" },
+  { id: "st1", name: "Farai", role: "stock", pin: "5678" },
   { id: "m1", name: "Manager", role: "manager", pin: "0000" },
 ];
 
@@ -113,54 +114,54 @@ const TopBar = ({ user }) => (
 );
 
 const PinLogin = ({ onLogin }) => {
-  const [selected, setSelected] = useState(null);
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
-  const roleIcon = { waiter: "🧑‍🍽️", kitchen: "👨‍🍳", cashier: "💳", manager: "👔", receptionist: "🛎️" };
 
-  const attempt = () => {
-    const staff = STAFF.find(s => s.id === selected && s.pin === pin);
-    if (staff) onLogin(staff);
-    else { setError("Wrong PIN"); setPin(""); }
-  };
+  useEffect(() => {
+    if (pin.length === 4) {
+      const staff = STAFF.find(s => s.pin === pin);
+      if (staff) { onLogin(staff); setPin(""); }
+      else { setError("Wrong PIN"); setTimeout(() => setPin(""), 400); }
+    } else {
+      setError("");
+    }
+  }, [pin]);
 
   return (
     <div style={{ minHeight: "100vh", background: C.purpleDark, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20, gap: 28 }}>
       <Logo size={44} />
-      <div style={{ width: "100%", maxWidth: 400 }}>
-        <p style={{ color: C.goldPale, textAlign: "center", marginBottom: 14, fontSize: 13 }}>Select your name</p>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 20 }}>
-          {STAFF.map(s => (
-            <button key={s.id} onClick={() => { setSelected(s.id); setPin(""); setError(""); }} style={{ background: selected === s.id ? C.gold : C.purple, color: selected === s.id ? C.purple : C.goldPale, border: `2px solid ${selected === s.id ? C.gold : C.purpleLight}`, borderRadius: 10, padding: "10px 6px", cursor: "pointer", fontWeight: 700, fontSize: 12 }}>
-              <div style={{ fontSize: 18 }}>{roleIcon[s.role]}</div>
-              <div style={{ marginTop: 4 }}>{s.name}</div>
-              <div style={{ fontSize: 9, fontWeight: 400, opacity: 0.7, marginTop: 2 }}>{s.role}</div>
-            </button>
+      <div style={{ width: "100%", maxWidth: 320 }}>
+        <p style={{ color: C.goldPale, textAlign: "center", marginBottom: 14, fontSize: 13 }}>Enter your PIN</p>
+        <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 14 }}>
+          {[0,1,2,3].map(i => (
+            <div key={i} style={{ width: 42, height: 42, borderRadius: 8, background: C.purple, border: `2px solid ${pin.length > i ? C.gold : C.purpleLight}`, display: "flex", alignItems: "center", justifyContent: "center", color: C.gold, fontSize: 20, fontWeight: 900 }}>
+              {pin.length > i ? "●" : ""}
+            </div>
           ))}
         </div>
-        {selected && (
-          <>
-            <p style={{ color: C.goldPale, textAlign: "center", marginBottom: 10, fontSize: 13 }}>Enter PIN</p>
-            <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 14 }}>
-              {[0,1,2,3].map(i => (
-                <div key={i} style={{ width: 42, height: 42, borderRadius: 8, background: C.purple, border: `2px solid ${pin.length > i ? C.gold : C.purpleLight}`, display: "flex", alignItems: "center", justifyContent: "center", color: C.gold, fontSize: 20, fontWeight: 900 }}>
-                  {pin.length > i ? "●" : ""}
-                </div>
-              ))}
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, maxWidth: 230, margin: "0 auto 14px" }}>
-              {[1,2,3,4,5,6,7,8,9,"",0,"⌫"].map((k, i) => (
-                <button key={i} onClick={() => { if (k === "⌫") setPin(p => p.slice(0,-1)); else if (k !== "" && pin.length < 4) setPin(p => p + k); }} style={{ height: 50, borderRadius: 10, border: k === "" ? "none" : `1px solid ${C.purpleLight}`, background: k === "" ? "transparent" : C.purple, color: C.gold, fontSize: 20, fontWeight: 700, cursor: k === "" ? "default" : "pointer" }}>{k}</button>
-              ))}
-            </div>
-            {error && <p style={{ color: C.redLight, textAlign: "center", marginBottom: 8, fontSize: 12 }}>{error}</p>}
-            <Btn onClick={attempt} disabled={pin.length < 4} style={{ width: "100%" }}>Login →</Btn>
-          </>
-        )}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, maxWidth: 230, margin: "0 auto 14px" }}>
+          {[1,2,3,4,5,6,7,8,9,"",0,"⌫"].map((k, i) => (
+            <button key={i} onClick={() => { if (k === "⌫") setPin(p => p.slice(0,-1)); else if (k !== "" && pin.length < 4) setPin(p => p + k); }} style={{ height: 50, borderRadius: 10, border: k === "" ? "none" : `1px solid ${C.purpleLight}`, background: k === "" ? "transparent" : C.purple, color: C.gold, fontSize: 20, fontWeight: 700, cursor: k === "" ? "default" : "pointer" }}>{k}</button>
+          ))}
+        </div>
+        {error && <p style={{ color: C.redLight, textAlign: "center", marginBottom: 8, fontSize: 12 }}>{error}</p>}
       </div>
     </div>
   );
 };
+
+const ClockInScreen = ({ staff, onClockIn, onCancel }) => (
+  <div style={{ minHeight: "100vh", background: C.purpleDark, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20, gap: 24 }}>
+    <Logo size={44} />
+    <div style={{ width: "100%", maxWidth: 320, textAlign: "center" }}>
+      <p style={{ color: C.goldPale, fontSize: 14, marginBottom: 4 }}>Welcome back,</p>
+      <h2 style={{ color: C.gold, margin: "0 0 4px", fontSize: 22 }}>{staff.name}</h2>
+      <p style={{ color: C.gray300, fontSize: 12, textTransform: "uppercase", letterSpacing: 1, marginBottom: 28 }}>{staff.role}</p>
+      <Btn onClick={onClockIn} style={{ width: "100%", padding: "16px" }}>🕐 Start My Shift</Btn>
+      <button onClick={onCancel} style={{ background: "none", border: "none", color: C.gray500, fontSize: 12, marginTop: 16, cursor: "pointer" }}>Not you? Go back</button>
+    </div>
+  </div>
+);
 
 const SidesPicker = ({ item, sides, onConfirm, onCancel }) => {
   const [chosen, setChosen] = useState([]);
@@ -623,6 +624,71 @@ const CashierView = ({ tables, setTables, user }) => {
   );
 };
 
+const StockView = ({ menu, setMenu, sides, setSides, user, addNotification }) => {
+  const initialMenuRef = useState(() => menu.map(m => ({ id: m.id, stock: m.stock })))[0];
+  const initialSidesRef = useState(() => sides.map(s => ({ id: s.id, stock: s.stock })))[0];
+  const [sending, setSending] = useState(false);
+
+  const sendUpdate = async () => {
+    const changedMenu = menu.filter(m => {
+      const orig = initialMenuRef.find(o => o.id === m.id);
+      return orig && orig.stock !== m.stock;
+    });
+    const changedSides = sides.filter(s => {
+      const orig = initialSidesRef.find(o => o.id === s.id);
+      return orig && orig.stock !== s.stock;
+    });
+    if (!changedMenu.length && !changedSides.length) {
+      addNotification("No stock changes to send yet");
+      return;
+    }
+    const parts = [...changedMenu.map(m => `${m.name} (${m.stock})`), ...changedSides.map(s => `${s.name} (${s.stock})`)];
+    const message = `${user.name} updated stock: ${parts.join(", ")}`;
+    setSending(true);
+    const { error } = await supabase.from("notifications").insert({ message, target_roles: "manager,kitchen" });
+    setSending(false);
+    if (error) { addNotification("Failed to send update"); return; }
+    changedMenu.forEach(m => { const o = initialMenuRef.find(x => x.id === m.id); if (o) o.stock = m.stock; });
+    changedSides.forEach(s => { const o = initialSidesRef.find(x => x.id === s.id); if (o) o.stock = s.stock; });
+    addNotification("Update sent to Manager & Chef");
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: C.purpleDark }}>
+      <TopBar user={user} />
+      <div style={{ padding: 16, paddingBottom: 90 }}>
+        <h2 style={{ color: C.gold, margin: "0 0 4px", fontSize: 15 }}>📦 STOCK MANAGEMENT</h2>
+        <p style={{ color: C.goldPale, fontSize: 12, marginBottom: 16 }}>Update counts after a delivery, then send the update</p>
+        <div style={{ color: C.goldPale, fontSize: 12, marginBottom: 8, fontWeight: 700 }}>Menu Items</div>
+        {menu.map(item => (
+          <div key={item.id} style={{ background: C.purple, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, border: `1px solid ${item.stock === 0 ? C.red : item.stock <= 3 ? C.orange : C.purpleLight}` }}>
+            <div><div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{item.name}</div><div style={{ color: stockColor(item.stock), fontSize: 11 }}>{item.stock === 0 ? "OUT" : item.stock <= 3 ? `⚠ ${item.stock} left` : `${item.stock} avail`}</div></div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button onClick={() => setMenu(p => p.map(m => m.id === item.id ? { ...m, stock: Math.max(0, m.stock - 1) } : m))} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.purpleLight, color: C.gold, fontWeight: 900, cursor: "pointer" }}>-</button>
+              <span style={{ color: stockColor(item.stock), fontWeight: 800, minWidth: 22, textAlign: "center" }}>{item.stock}</span>
+              <button onClick={() => setMenu(p => p.map(m => m.id === item.id ? { ...m, stock: m.stock + 1 } : m))} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.gold, color: C.purple, fontWeight: 900, cursor: "pointer" }}>+</button>
+            </div>
+          </div>
+        ))}
+        <div style={{ color: C.goldPale, fontSize: 12, margin: "14px 0 8px", fontWeight: 700 }}>Sides</div>
+        {sides.map(side => (
+          <div key={side.id} style={{ background: C.purple, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, border: `1px solid ${side.stock === 0 ? C.red : side.stock <= 3 ? C.orange : C.purpleLight}` }}>
+            <div><div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{side.name}</div><div style={{ color: stockColor(side.stock), fontSize: 11 }}>{side.stock === 0 ? "OUT OF STOCK" : side.stock <= 3 ? `⚠ ${side.stock} left` : `${side.stock} avail`}</div></div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button onClick={() => setSides(p => p.map(s => s.id === side.id ? { ...s, stock: Math.max(0, s.stock - 1) } : s))} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.purpleLight, color: C.gold, fontWeight: 900, cursor: "pointer" }}>-</button>
+              <span style={{ color: stockColor(side.stock), fontWeight: 800, minWidth: 22, textAlign: "center" }}>{side.stock}</span>
+              <button onClick={() => setSides(p => p.map(s => s.id === side.id ? { ...s, stock: s.stock + 1 } : s))} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.gold, color: C.purple, fontWeight: 900, cursor: "pointer" }}>+</button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, maxWidth: 480, margin: "0 auto", background: C.purple, borderTop: `2px solid ${C.gold}`, padding: 14 }}>
+        <Btn onClick={sendUpdate} disabled={sending} style={{ width: "100%" }}>{sending ? "Sending..." : "📣 Send Update to Manager & Chef"}</Btn>
+      </div>
+    </div>
+  );
+};
+
 const FloorPlan = ({ tables, setTables, canReserve, addNotification }) => {
   const [selected, setSelected] = useState(null);
   const [reserveModal, setReserveModal] = useState(null);
@@ -805,6 +871,17 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, user, addNotific
   const [openingTable, setOpeningTable] = useState(null);
   const [showOrder, setShowOrder] = useState(false);
   const [showTakeaway, setShowTakeaway] = useState(false);
+  const [onShift, setOnShift] = useState([]);
+
+  useEffect(() => {
+    const loadShifts = async () => {
+      const { data } = await supabase.from("shifts").select("*").is("clock_out", null).order("clock_in");
+      setOnShift(data || []);
+    };
+    loadShifts();
+    const iv = setInterval(loadShifts, 15000);
+    return () => clearInterval(iv);
+  }, []);
 
   const diningTables = tables.filter(t => !t.isTakeaway);
   const takeawayOrders = tables.filter(t => t.isTakeaway && t.status !== "free");
@@ -915,6 +992,25 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, user, addNotific
         )}
         {tab === "staff" && (
           <div>
+            <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13, marginBottom: 10 }}>🟢 ON SHIFT NOW</div>
+            {onShift.length === 0 ? (
+              <div style={{ color: C.gray500, fontSize: 12, marginBottom: 18 }}>No one is currently clocked in</div>
+            ) : (
+              <div style={{ marginBottom: 20 }}>
+                {onShift.map(s => (
+                  <div key={s.id} style={{ background: C.purple, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, border: `1px solid ${C.greenLight}` }}>
+                    <div>
+                      <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{s.staff_name}</div>
+                      <div style={{ color: C.gray500, fontSize: 11, textTransform: "uppercase" }}>{s.role}</div>
+                    </div>
+                    <div style={{ color: C.greenLight, fontSize: 11, fontWeight: 700 }}>
+                      Since {new Date(s.clock_in).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13, marginBottom: 10 }}>WAITER PERFORMANCE</div>
             {STAFF.filter(s => s.role === "waiter").map(s => {
               const myT = tables.filter(t => t.waiterId === s.id);
               const rev = myT.reduce((sum, t) => sum + orderTotal(t.order), 0);
@@ -956,11 +1052,54 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, user, addNotific
 
 export default function App() {
   const [user, setUser] = useState(null);
+  const [pendingStaff, setPendingStaff] = useState(null);
+  const [shiftId, setShiftId] = useState(null);
   const [tables, setTables] = useState(INITIAL_TABLES);
   const [menu, setMenu] = useState(INITIAL_MENU);
   const [sides, setSides] = useState(SIDES);
   const [notification, setNotification] = useState(null);
   const [loaded, setLoaded] = useState(false);
+  const lastNotifCheck = useRef(new Date().toISOString());
+
+  const handlePinMatch = useCallback(async (staff) => {
+    const { data } = await supabase.from("shifts").select("id").eq("staff_id", staff.id).is("clock_out", null).order("clock_in", { ascending: false }).limit(1);
+    if (data && data.length) {
+      setShiftId(data[0].id);
+      setUser(staff);
+    } else {
+      setPendingStaff(staff);
+    }
+  }, []);
+
+  const handleClockIn = useCallback(async () => {
+    const { data, error } = await supabase.from("shifts").insert({ staff_id: pendingStaff.id, staff_name: pendingStaff.name, role: pendingStaff.role }).select().single();
+    if (!error && data) {
+      setShiftId(data.id);
+      setUser(pendingStaff);
+      setPendingStaff(null);
+    }
+  }, [pendingStaff]);
+
+  const handleClockOut = useCallback(async () => {
+    if (shiftId) {
+      await supabase.from("shifts").update({ clock_out: new Date().toISOString() }).eq("id", shiftId);
+    }
+    setUser(null);
+    setShiftId(null);
+  }, [shiftId]);
+
+  useEffect(() => {
+    if (!user || (user.role !== "manager" && user.role !== "kitchen")) return;
+    const poll = async () => {
+      const { data } = await supabase.from("notifications").select("*").gt("created_at", lastNotifCheck.current).ilike("target_roles", `%${user.role}%`).order("created_at");
+      if (data && data.length) {
+        data.forEach(n => addNotification(n.message));
+        lastNotifCheck.current = data[data.length - 1].created_at;
+      }
+    };
+    const iv = setInterval(poll, 10000);
+    return () => clearInterval(iv);
+  }, [user]);
 
   useEffect(() => {
     (async () => {
@@ -1008,7 +1147,8 @@ export default function App() {
     setTimeout(() => setNotification(null), 3500);
   }, []);
 
-  if (!user) return <PinLogin onLogin={setUser} />;
+  if (!user && pendingStaff) return <ClockInScreen staff={pendingStaff} onClockIn={handleClockIn} onCancel={() => setPendingStaff(null)} />;
+  if (!user) return <PinLogin onLogin={handlePinMatch} />;
 
   const props = { tables, setTables, menu, setMenu, sides, setSides, user, addNotification };
 
@@ -1019,8 +1159,9 @@ export default function App() {
       {user.role === "waiter" && <WaiterView {...props} />}
       {user.role === "kitchen" && <KitchenView {...props} />}
       {user.role === "cashier" && <CashierView {...props} />}
+      {user.role === "stock" && <StockView {...props} />}
       {user.role === "manager" && <ManagerView {...props} />}
-      <button onClick={() => setUser(null)} style={{ position: "fixed", bottom: 16, right: 16, zIndex: 500, background: C.purple, border: `2px solid ${C.gold}`, borderRadius: 50, color: C.gold, fontWeight: 700, fontSize: 11, cursor: "pointer", padding: "7px 13px", boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}>Logout</button>
+      <button onClick={handleClockOut} style={{ position: "fixed", bottom: 16, right: 16, zIndex: 500, background: C.purple, border: `2px solid ${C.gold}`, borderRadius: 50, color: C.gold, fontWeight: 700, fontSize: 11, cursor: "pointer", padding: "7px 13px", boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}>Clock Out</button>
     </div>
   );
 }
