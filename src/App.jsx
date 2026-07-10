@@ -12,12 +12,14 @@ const tableToRow = (t) => ({
   order_data: t.order, order_sent_at: t.orderSentAt, opened_at: t.openedAt,
   reservation: t.reservation, is_takeaway: t.isTakeaway,
   takeaway_number: t.takeawayNumber, customer_name: t.customerName || null,
+  opened_ts: t.openedTs || null,
 });
 const rowToTable = (r) => ({
   id: r.id, status: r.status, guests: r.guests, waiterId: r.waiter_id,
   order: r.order_data || [], orderSentAt: r.order_sent_at, openedAt: r.opened_at,
   reservation: r.reservation, isTakeaway: r.is_takeaway,
   takeawayNumber: r.takeaway_number, customerName: r.customer_name,
+  openedTs: r.opened_ts || null,
 });
 const menuToRow = (m) => ({ id: m.id, name: m.name, category: m.category, price: m.price, stock: m.stock, has_sides: m.hasSides, sides_required: m.sidesRequired });
 const rowToMenu = (r) => ({ id: r.id, name: r.name, category: r.category, price: r.price, stock: r.stock, hasSides: r.has_sides, sidesRequired: r.sides_required });
@@ -459,7 +461,7 @@ const WaiterView = ({ tables, setTables, menu, sides, user, addNotification }) =
     const g = parseInt(guestsStr);
     if (!g) return;
     const base = tables.find(t => t.id === tableId);
-    const updated = { ...base, status: "occupied", guests: g, waiterId: user.id, order: [], openedAt: nowTime(), orderSentAt: null, reservation: null };
+    const updated = { ...base, status: "occupied", guests: g, waiterId: user.id, order: [], openedAt: nowTime(), openedTs: Date.now(), orderSentAt: null, reservation: null };
     setTables(prev => prev.map(t => t.id === tableId ? updated : t));
     setActiveTable(updated);
     setOpeningTable(null);
@@ -471,7 +473,7 @@ const WaiterView = ({ tables, setTables, menu, sides, user, addNotification }) =
     const tkNumber = `TK${takeawayCount + 1}`;
     const newOrder = {
       id: newId, status: "occupied", guests: 1, waiterId: user.id,
-      order: [], orderSentAt: null, openedAt: nowTime(), reservation: null,
+      order: [], orderSentAt: null, openedAt: nowTime(), openedTs: Date.now(), reservation: null,
       isTakeaway: true, takeawayNumber: tkNumber, customerName,
     };
     setTables(prev => [...prev, newOrder]);
@@ -554,6 +556,11 @@ const KitchenView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
     setTables(prev => prev.map(t => t.id === tableId ? { ...t, status: "bill" } : t));
     const label = table.isTakeaway ? `Takeaway ${table.takeawayNumber}` : `Table ${tableId}`;
     addNotification(`${label} is ready!`);
+    const items = table.order.map(o => `${o.qty}x ${o.name}`).join(", ");
+    supabase.from("shift_events").insert({
+      staff_id: user.id, staff_name: user.name, role: "kitchen",
+      event_type: "order_ready", details: { label, items },
+    });
   };
 
   return (
@@ -615,17 +622,30 @@ const CashierView = ({ tables, setTables, user }) => {
   const billTables = tables.filter(t => t.status === "bill");
   const processPay = async (tableId) => {
     const t = tables.find(x => x.id === tableId);
-    if (t && t.waiterId) {
+    if (t) {
       const amount = orderTotal(t.order);
-      const { data } = await supabase.from("shifts").select("id, tables_served, revenue").eq("staff_id", t.waiterId).is("clock_out", null).limit(1);
-      if (data && data.length) {
-        const s = data[0];
-        await supabase.from("shifts").update({ tables_served: (s.tables_served || 0) + 1, revenue: (Number(s.revenue) || 0) + amount }).eq("id", s.id);
+      const label = t.isTakeaway ? t.takeawayNumber : `Table ${t.id}`;
+      const duration = t.openedTs ? Math.round((Date.now() - t.openedTs) / 60000) : null;
+      if (t.waiterId) {
+        const waiterStaff = STAFF.find(s => s.id === t.waiterId);
+        const { data } = await supabase.from("shifts").select("id, tables_served, revenue").eq("staff_id", t.waiterId).is("clock_out", null).limit(1);
+        if (data && data.length) {
+          const s = data[0];
+          await supabase.from("shifts").update({ tables_served: (s.tables_served || 0) + 1, revenue: (Number(s.revenue) || 0) + amount }).eq("id", s.id);
+        }
+        await supabase.from("shift_events").insert({
+          staff_id: t.waiterId, staff_name: waiterStaff ? waiterStaff.name : t.waiterId, role: "waiter",
+          event_type: "table_served", details: { label, guests: t.guests, duration, amount },
+        });
       }
+      await supabase.from("shift_events").insert({
+        staff_id: user.id, staff_name: user.name, role: "cashier",
+        event_type: "payment_processed", details: { label, amount },
+      });
     }
     setTables(prev => {
       if (t && t.isTakeaway) return prev.filter(x => x.id !== tableId);
-      return prev.map(x => x.id === tableId ? { ...x, status: "free", guests: 0, waiterId: null, order: [], orderSentAt: null, openedAt: null, reservation: null } : x);
+      return prev.map(x => x.id === tableId ? { ...x, status: "free", guests: 0, waiterId: null, order: [], orderSentAt: null, openedAt: null, openedTs: null, reservation: null } : x);
     });
     setSelectedTable(null);
   };
@@ -745,6 +765,10 @@ const StockView = ({ menu, setMenu, sides, setSides, user, addNotification }) =>
       if (data && data.length) {
         await supabase.from("shifts").update({ stock_updates: (data[0].stock_updates || 0) + 1 }).eq("id", data[0].id);
       }
+      await supabase.from("shift_events").insert({
+        staff_id: user.id, staff_name: user.name, role: "stock",
+        event_type: "stock_update", details: { message },
+      });
     }
     setSending(false);
     if (error) { addNotification("Failed to send update"); return; }
@@ -819,7 +843,7 @@ const FloorPlan = ({ tables, setTables, canReserve, addNotification }) => {
     const tkNumber = `TK${takeawayCount + 1}`;
     const newOrder = {
       id: newId, status: "occupied", guests: 1, waiterId: null,
-      order: [], orderSentAt: null, openedAt: nowTime(), reservation: null,
+      order: [], orderSentAt: null, openedAt: nowTime(), openedTs: Date.now(), reservation: null,
       isTakeaway: true, takeawayNumber: tkNumber, customerName,
     };
     setTables(prev => [...prev, newOrder]);
@@ -973,6 +997,28 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, user, addNotific
   const [showTakeaway, setShowTakeaway] = useState(false);
   const [onShift, setOnShift] = useState([]);
   const [history, setHistory] = useState([]);
+  const [selectedShift, setSelectedShift] = useState(null);
+  const [shiftEvents, setShiftEvents] = useState([]);
+  const [loadingEvents, setLoadingEvents] = useState(false);
+
+  const openShiftDetail = async (s) => {
+    setSelectedShift(s);
+    setLoadingEvents(true);
+    const endTime = s.clock_out || new Date().toISOString();
+    const { data } = await supabase.from("shift_events").select("*").eq("staff_id", s.staff_id).gte("created_at", s.clock_in).lte("created_at", endTime).order("created_at");
+    setShiftEvents(data || []);
+    setLoadingEvents(false);
+  };
+
+  const renderEvent = (e) => {
+    const time = new Date(e.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const d = e.details || {};
+    if (e.event_type === "table_served") return `${time} — ${d.label}: ${d.guests} guest${d.guests === 1 ? "" : "s"}${d.duration != null ? `, ${d.duration} min` : ""}, ${fmt(d.amount || 0)}`;
+    if (e.event_type === "payment_processed") return `${time} — Processed ${d.label}: ${fmt(d.amount || 0)}`;
+    if (e.event_type === "stock_update") return `${time} — ${d.message}`;
+    if (e.event_type === "order_ready") return `${time} — ${d.label} ready: ${d.items}`;
+    return `${time} — ${e.event_type}`;
+  };
 
   useEffect(() => {
     const loadHistory = async () => {
@@ -1006,7 +1052,7 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, user, addNotific
     const g = parseInt(guestsStr);
     if (!g) return;
     const base = tables.find(t => t.id === tableId);
-    const updated = { ...base, status: "occupied", guests: g, waiterId: user.id, order: [], openedAt: nowTime(), orderSentAt: null, reservation: null };
+    const updated = { ...base, status: "occupied", guests: g, waiterId: user.id, order: [], openedAt: nowTime(), openedTs: Date.now(), orderSentAt: null, reservation: null };
     setTables(prev => prev.map(t => t.id === tableId ? updated : t));
     setActiveTable(updated);
     setOpeningTable(null);
@@ -1018,7 +1064,7 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, user, addNotific
     const tkNumber = `TK${takeawayCount + 1}`;
     const newOrder = {
       id: newId, status: "occupied", guests: 1, waiterId: user.id,
-      order: [], orderSentAt: null, openedAt: nowTime(), reservation: null,
+      order: [], orderSentAt: null, openedAt: nowTime(), openedTs: Date.now(), reservation: null,
       isTakeaway: true, takeawayNumber: tkNumber, customerName,
     };
     setTables(prev => [...prev, newOrder]);
@@ -1162,7 +1208,7 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, user, addNotific
             {history.length === 0 ? (
               <div style={{ color: C.gray500, fontSize: 12 }}>No completed shifts yet</div>
             ) : history.map(s => (
-              <div key={s.id} style={{ background: C.purple, borderRadius: 10, padding: "12px 14px", marginBottom: 8, border: `1px solid ${C.purpleLight}` }}>
+              <button key={s.id} onClick={() => openShiftDetail(s)} style={{ background: C.purple, borderRadius: 10, padding: "12px 14px", marginBottom: 8, border: `1px solid ${C.purpleLight}`, width: "100%", textAlign: "left", cursor: "pointer" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                   <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{s.staff_name}</div>
                   <div style={{ color: C.gray500, fontSize: 11, textTransform: "uppercase" }}>{s.role}</div>
@@ -1174,12 +1220,51 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, user, addNotific
                   <div style={{ color: C.gold, fontSize: 12, fontWeight: 700 }}>{s.tables_served || 0} tables</div>
                   <div style={{ color: C.greenLight, fontSize: 12, fontWeight: 700 }}>{fmt(s.revenue || 0)}</div>
                   {s.role === "stock" && <div style={{ color: C.teal, fontSize: 12, fontWeight: 700 }}>{s.stock_updates || 0} stock updates</div>}
+                  <div style={{ color: C.gray500, fontSize: 11, marginLeft: "auto" }}>Tap for details →</div>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         )}
       </div>
+      {selectedShift && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 400, padding: 20 }}>
+          <div style={{ background: C.purpleDark, borderRadius: 16, padding: 20, width: "100%", maxWidth: 420, maxHeight: "80vh", overflowY: "auto", border: `2px solid ${C.gold}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
+              <div>
+                <div style={{ color: C.gold, fontWeight: 800, fontSize: 18 }}>{selectedShift.staff_name}</div>
+                <div style={{ color: C.goldPale, fontSize: 12, textTransform: "uppercase", letterSpacing: 1 }}>{selectedShift.role}</div>
+              </div>
+              <button onClick={() => setSelectedShift(null)} style={{ background: "none", border: "none", color: C.gold, fontSize: 22, cursor: "pointer" }}>✕</button>
+            </div>
+            <div style={{ color: C.gray300, fontSize: 12, marginBottom: 4 }}>
+              Clocked in: {new Date(selectedShift.clock_in).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+            </div>
+            <div style={{ color: C.gray300, fontSize: 12, marginBottom: 16 }}>
+              Clocked out: {selectedShift.clock_out ? new Date(selectedShift.clock_out).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "Still on shift"}
+            </div>
+            <div style={{ display: "flex", gap: 14, marginBottom: 18, flexWrap: "wrap" }}>
+              <div style={{ color: C.gold, fontSize: 13, fontWeight: 700 }}>{selectedShift.tables_served || 0} tables served</div>
+              <div style={{ color: C.greenLight, fontSize: 13, fontWeight: 700 }}>{fmt(selectedShift.revenue || 0)} revenue</div>
+              {selectedShift.role === "stock" && <div style={{ color: C.teal, fontSize: 13, fontWeight: 700 }}>{selectedShift.stock_updates || 0} stock updates</div>}
+            </div>
+            <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13, marginBottom: 8 }}>ACTIVITY LOG</div>
+            {loadingEvents ? (
+              <div style={{ color: C.gray500, fontSize: 12 }}>Loading...</div>
+            ) : shiftEvents.length === 0 ? (
+              <div style={{ color: C.gray500, fontSize: 12 }}>No recorded activity for this shift</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {shiftEvents.map(e => (
+                  <div key={e.id} style={{ background: C.purple, borderRadius: 8, padding: "8px 12px", color: C.goldPale, fontSize: 12 }}>
+                    {renderEvent(e)}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
