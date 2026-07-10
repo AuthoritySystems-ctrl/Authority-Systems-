@@ -613,10 +613,18 @@ const KitchenView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
 const CashierView = ({ tables, setTables, user }) => {
   const [selectedTable, setSelectedTable] = useState(null);
   const billTables = tables.filter(t => t.status === "bill");
-  const processPay = (tableId) => {
+  const processPay = async (tableId) => {
+    const t = tables.find(x => x.id === tableId);
+    if (t && t.waiterId) {
+      const amount = orderTotal(t.order);
+      const { data } = await supabase.from("shifts").select("id, tables_served, revenue").eq("staff_id", t.waiterId).is("clock_out", null).limit(1);
+      if (data && data.length) {
+        const s = data[0];
+        await supabase.from("shifts").update({ tables_served: (s.tables_served || 0) + 1, revenue: (Number(s.revenue) || 0) + amount }).eq("id", s.id);
+      }
+    }
     setTables(prev => {
-      const t = prev.find(x => x.id === tableId);
-      if (t.isTakeaway) return prev.filter(x => x.id !== tableId);
+      if (t && t.isTakeaway) return prev.filter(x => x.id !== tableId);
       return prev.map(x => x.id === tableId ? { ...x, status: "free", guests: 0, waiterId: null, order: [], orderSentAt: null, openedAt: null, reservation: null } : x);
     });
     setSelectedTable(null);
@@ -731,7 +739,13 @@ const StockView = ({ menu, setMenu, sides, setSides, user, addNotification }) =>
     const parts = [...changedMenu.map(m => `${m.name} (${m.stock})`), ...changedSides.map(s => `${s.name} (${s.stock})`)];
     const message = `${user.name} updated stock: ${parts.join(", ")}`;
     setSending(true);
-    const { error } = await supabase.from("notifications").insert({ message, target_roles: "manager,kitchen" });
+    const { error } = await supabase.from("notifications").insert({ message, target_roles: "manager,kitchen", sender_name: user.name, sender_role: user.role });
+    if (!error) {
+      const { data } = await supabase.from("shifts").select("id, stock_updates").eq("staff_id", user.id).is("clock_out", null).limit(1);
+      if (data && data.length) {
+        await supabase.from("shifts").update({ stock_updates: (data[0].stock_updates || 0) + 1 }).eq("id", data[0].id);
+      }
+    }
     setSending(false);
     if (error) { addNotification("Failed to send update"); return; }
     changedMenu.forEach(m => { const o = initialMenuRef.find(x => x.id === m.id); if (o) o.stock = m.stock; });
@@ -958,6 +972,17 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, user, addNotific
   const [showOrder, setShowOrder] = useState(false);
   const [showTakeaway, setShowTakeaway] = useState(false);
   const [onShift, setOnShift] = useState([]);
+  const [history, setHistory] = useState([]);
+
+  useEffect(() => {
+    const loadHistory = async () => {
+      const { data } = await supabase.from("shifts").select("*").not("clock_out", "is", null).order("clock_out", { ascending: false }).limit(30);
+      setHistory(data || []);
+    };
+    loadHistory();
+    const iv = setInterval(loadHistory, 20000);
+    return () => clearInterval(iv);
+  }, []);
 
   useEffect(() => {
     const loadShifts = async () => {
@@ -1028,7 +1053,7 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, user, addNotific
         ))}
       </div>
       <div style={{ display: "flex", margin: "12px 16px 0", borderRadius: 10, overflow: "hidden", border: `1px solid ${C.purpleLight}` }}>
-        {[["floor","Floor"], ["tables","Tables"], ["staff","Staff"], ["stock","Stock"]].map(([k, l]) => (
+        {[["floor","Floor"], ["tables","Tables"], ["staff","Staff"], ["stock","Stock"], ["history","History"]].map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} style={{ flex: 1, padding: "10px 2px", background: tab === k ? C.gold : C.purple, color: tab === k ? C.purple : C.goldPale, border: "none", fontWeight: 700, fontSize: 11, cursor: "pointer" }}>{l}</button>
         ))}
       </div>
@@ -1131,6 +1156,29 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, user, addNotific
             ))}
           </div>
         )}
+        {tab === "history" && (
+          <div>
+            <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13, marginBottom: 10 }}>SHIFT HISTORY</div>
+            {history.length === 0 ? (
+              <div style={{ color: C.gray500, fontSize: 12 }}>No completed shifts yet</div>
+            ) : history.map(s => (
+              <div key={s.id} style={{ background: C.purple, borderRadius: 10, padding: "12px 14px", marginBottom: 8, border: `1px solid ${C.purpleLight}` }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{s.staff_name}</div>
+                  <div style={{ color: C.gray500, fontSize: 11, textTransform: "uppercase" }}>{s.role}</div>
+                </div>
+                <div style={{ color: C.gray300, fontSize: 11, marginBottom: 6 }}>
+                  {new Date(s.clock_in).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })} → {new Date(s.clock_out).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </div>
+                <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+                  <div style={{ color: C.gold, fontSize: 12, fontWeight: 700 }}>{s.tables_served || 0} tables</div>
+                  <div style={{ color: C.greenLight, fontSize: 12, fontWeight: 700 }}>{fmt(s.revenue || 0)}</div>
+                  {s.role === "stock" && <div style={{ color: C.teal, fontSize: 12, fontWeight: 700 }}>{s.stock_updates || 0} stock updates</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1167,12 +1215,19 @@ export default function App() {
   }, [pendingStaff]);
 
   const handleClockOut = useCallback(async () => {
+    if (user) {
+      const activeTables = tables.filter(t => t.waiterId === user.id && (t.status === "occupied" || t.status === "bill"));
+      if (activeTables.length > 0) {
+        addNotification(`Close out ${activeTables.length} active table${activeTables.length > 1 ? "s" : ""} before clocking out`);
+        return;
+      }
+    }
     if (shiftId) {
       await supabase.from("shifts").update({ clock_out: new Date().toISOString() }).eq("id", shiftId);
     }
     setUser(null);
     setShiftId(null);
-  }, [shiftId]);
+  }, [shiftId, user, tables]);
 
   useEffect(() => {
     if (!user || (user.role !== "manager" && user.role !== "kitchen")) return;
