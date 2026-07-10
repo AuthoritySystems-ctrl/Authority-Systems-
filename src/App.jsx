@@ -819,6 +819,94 @@ const StockView = ({ menu, setMenu, sides, setSides, user, addNotification }) =>
   );
 };
 
+const MenuItemModal = ({ item, onSave, onDelete, onCancel }) => {
+  const isNew = !item;
+  const [name, setName] = useState(item?.name || "");
+  const [category, setCategory] = useState(item?.category || CATEGORIES[0]);
+  const [price, setPrice] = useState(item ? String(item.price) : "");
+  const [stock, setStock] = useState(item ? String(item.stock) : "0");
+  const [hasSides, setHasSides] = useState(item?.hasSides || false);
+  const [sidesRequired, setSidesRequired] = useState(item ? String(item.sidesRequired || 1) : "1");
+
+  const valid = name.trim() && price !== "" && !isNaN(Number(price));
+
+  const save = () => {
+    onSave({
+      id: item ? item.id : null,
+      name: name.trim(), category, price: Number(price),
+      stock: Number(stock) || 0, hasSides,
+      sidesRequired: hasSides ? Math.max(1, Number(sidesRequired) || 1) : 0,
+    });
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300, padding: 20 }}>
+      <div style={{ background: C.purple, borderRadius: 16, padding: 22, width: "100%", maxWidth: 360, maxHeight: "85vh", overflowY: "auto", border: `2px solid ${C.gold}` }}>
+        <h3 style={{ color: C.gold, margin: "0 0 16px" }}>{isNew ? "Add Menu Item" : "Edit Menu Item"}</h3>
+        <div style={{ color: C.goldPale, fontSize: 12, marginBottom: 6 }}>Name</div>
+        <input value={name} onChange={e => setName(e.target.value)} placeholder="Item name" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.purpleLight}`, background: C.purpleDark, color: C.goldPale, fontSize: 14, marginBottom: 14, boxSizing: "border-box" }} />
+        <div style={{ color: C.goldPale, fontSize: 12, marginBottom: 6 }}>Category</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 6, marginBottom: 14 }}>
+          {CATEGORIES.map(c => (
+            <button key={c} onClick={() => setCategory(c)} style={{ padding: "8px 2px", borderRadius: 8, border: `2px solid ${category === c ? C.gold : C.purpleLight}`, background: category === c ? C.gold : "transparent", color: category === c ? C.purple : C.goldPale, fontWeight: 700, fontSize: 10, cursor: "pointer" }}>{c}</button>
+          ))}
+        </div>
+        <div style={{ color: C.goldPale, fontSize: 12, marginBottom: 6 }}>Price ($)</div>
+        <input value={price} onChange={e => setPrice(e.target.value)} placeholder="0.00" inputMode="decimal" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.purpleLight}`, background: C.purpleDark, color: C.goldPale, fontSize: 14, marginBottom: 14, boxSizing: "border-box" }} />
+        {isNew && (
+          <>
+            <div style={{ color: C.goldPale, fontSize: 12, marginBottom: 6 }}>Starting Stock</div>
+            <input value={stock} onChange={e => setStock(e.target.value)} placeholder="0" inputMode="numeric" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.purpleLight}`, background: C.purpleDark, color: C.goldPale, fontSize: 14, marginBottom: 14, boxSizing: "border-box" }} />
+          </>
+        )}
+        <button onClick={() => setHasSides(v => !v)} style={{ display: "flex", alignItems: "center", gap: 10, background: "none", border: "none", cursor: "pointer", marginBottom: hasSides ? 10 : 18, padding: 0 }}>
+          <div style={{ width: 20, height: 20, borderRadius: 5, border: `2px solid ${C.gold}`, background: hasSides ? C.gold : "transparent", display: "flex", alignItems: "center", justifyContent: "center", color: C.purple, fontWeight: 900, fontSize: 13 }}>{hasSides ? "✓" : ""}</div>
+          <span style={{ color: C.goldPale, fontSize: 13 }}>Requires side dishes</span>
+        </button>
+        {hasSides && (
+          <>
+            <div style={{ color: C.goldPale, fontSize: 12, marginBottom: 6 }}>Sides Required</div>
+            <input value={sidesRequired} onChange={e => setSidesRequired(e.target.value)} inputMode="numeric" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.purpleLight}`, background: C.purpleDark, color: C.goldPale, fontSize: 14, marginBottom: 18, boxSizing: "border-box" }} />
+          </>
+        )}
+        <div style={{ display: "flex", gap: 10, marginBottom: onDelete ? 10 : 0 }}>
+          <Btn onClick={onCancel} color={C.purpleLight} textColor={C.goldPale} style={{ flex: 1 }}>Cancel</Btn>
+          <Btn onClick={save} disabled={!valid} style={{ flex: 1 }}>{isNew ? "Add Item" : "Save"}</Btn>
+        </div>
+        {onDelete && (
+          <button onClick={onDelete} style={{ width: "100%", background: "none", border: `1px solid ${C.red}`, color: C.redLight, borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Delete Item</button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const SideModal = ({ side, onSave, onDelete, onCancel }) => {
+  const isNew = !side;
+  const [name, setName] = useState(side?.name || "");
+  const [stock, setStock] = useState(side ? String(side.stock) : "0");
+  const valid = name.trim();
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300, padding: 20 }}>
+      <div style={{ background: C.purple, borderRadius: 16, padding: 22, width: "100%", maxWidth: 340, border: `2px solid ${C.gold}` }}>
+        <h3 style={{ color: C.gold, margin: "0 0 16px" }}>{isNew ? "Add Side" : "Edit Side"}</h3>
+        <div style={{ color: C.goldPale, fontSize: 12, marginBottom: 6 }}>Name</div>
+        <input value={name} onChange={e => setName(e.target.value)} placeholder="Side name" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.purpleLight}`, background: C.purpleDark, color: C.goldPale, fontSize: 14, marginBottom: 14, boxSizing: "border-box" }} />
+        <div style={{ color: C.goldPale, fontSize: 12, marginBottom: 6 }}>Stock</div>
+        <input value={stock} onChange={e => setStock(e.target.value)} placeholder="0" inputMode="numeric" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.purpleLight}`, background: C.purpleDark, color: C.goldPale, fontSize: 14, marginBottom: 18, boxSizing: "border-box" }} />
+        <div style={{ display: "flex", gap: 10, marginBottom: onDelete ? 10 : 0 }}>
+          <Btn onClick={onCancel} color={C.purpleLight} textColor={C.goldPale} style={{ flex: 1 }}>Cancel</Btn>
+          <Btn onClick={() => onSave({ id: side ? side.id : null, name: name.trim(), stock: Number(stock) || 0 })} disabled={!valid} style={{ flex: 1 }}>{isNew ? "Add Side" : "Save"}</Btn>
+        </div>
+        {onDelete && (
+          <button onClick={onDelete} style={{ width: "100%", background: "none", border: `1px solid ${C.red}`, color: C.redLight, borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Delete Side</button>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const FloorPlan = ({ tables, setTables, canReserve, addNotification }) => {
   const [selected, setSelected] = useState(null);
   const [reserveModal, setReserveModal] = useState(null);
@@ -995,7 +1083,7 @@ const ReceptionistView = ({ tables, setTables, user, addNotification }) => (
   </div>
 );
 
-const ManagerView = ({ tables, setTables, menu, setMenu, sides, user, addNotification }) => {
+const ManagerView = ({ tables, setTables, menu, setMenu, sides, setSides, user, addNotification }) => {
   const [tab, setTab] = useState("floor");
   const [activeTable, setActiveTable] = useState(null);
   const [openingTable, setOpeningTable] = useState(null);
@@ -1005,6 +1093,38 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, user, addNotific
   const [history, setHistory] = useState([]);
   const [sales, setSales] = useState([]);
   const [reportRange, setReportRange] = useState("today");
+  const [editingItem, setEditingItem] = useState(null);
+  const [addingItem, setAddingItem] = useState(false);
+  const [editingSide, setEditingSide] = useState(null);
+  const [addingSide, setAddingSide] = useState(false);
+
+  const saveMenuItem = (data) => {
+    if (data.id) {
+      setMenu(prev => prev.map(m => m.id === data.id ? { ...m, ...data } : m));
+    } else {
+      const newId = menu.length ? Math.max(...menu.map(m => m.id)) + 1 : 1;
+      setMenu(prev => [...prev, { ...data, id: newId }]);
+    }
+    setEditingItem(null); setAddingItem(false);
+  };
+  const deleteMenuItem = (id) => {
+    setMenu(prev => prev.filter(m => m.id !== id));
+    setEditingItem(null);
+  };
+  const saveSide = (data) => {
+    if (data.id) {
+      setSides(prev => prev.map(s => s.id === data.id ? { ...s, ...data } : s));
+    } else {
+      const nums = sides.map(s => parseInt((s.id || "s0").replace("s", "")) || 0);
+      const newId = "s" + (nums.length ? Math.max(...nums) + 1 : 1);
+      setSides(prev => [...prev, { ...data, id: newId }]);
+    }
+    setEditingSide(null); setAddingSide(false);
+  };
+  const deleteSide = (id) => {
+    setSides(prev => prev.filter(s => s.id !== id));
+    setEditingSide(null);
+  };
 
   useEffect(() => {
     const loadSales = async () => {
@@ -1142,7 +1262,7 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, user, addNotific
         ))}
       </div>
       <div style={{ display: "flex", margin: "12px 16px 0", borderRadius: 10, overflow: "hidden", border: `1px solid ${C.purpleLight}` }}>
-        {[["floor","Floor"], ["tables","Tables"], ["staff","Staff"], ["stock","Stock"], ["reports","Reports"], ["history","History"]].map(([k, l]) => (
+        {[["floor","Floor"], ["tables","Tables"], ["staff","Staff"], ["stock","Stock"], ["menu","Menu"], ["reports","Reports"], ["history","History"]].map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} style={{ flex: 1, padding: "10px 2px", background: tab === k ? C.gold : C.purple, color: tab === k ? C.purple : C.goldPale, border: "none", fontWeight: 700, fontSize: 11, cursor: "pointer" }}>{l}</button>
         ))}
       </div>
@@ -1245,6 +1365,33 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, user, addNotific
             ))}
           </div>
         )}
+        {tab === "menu" && (
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>Menu Items</div>
+              <button onClick={() => setAddingItem(true)} style={{ background: C.gold, color: C.purple, border: "none", borderRadius: 8, padding: "6px 12px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>+ Add Item</button>
+            </div>
+            {menu.map(item => (
+              <button key={item.id} onClick={() => setEditingItem(item)} style={{ width: "100%", textAlign: "left", background: C.purple, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, border: `1px solid ${C.purpleLight}`, cursor: "pointer" }}>
+                <div>
+                  <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{item.name}</div>
+                  <div style={{ color: C.gray500, fontSize: 11 }}>{item.category} · {fmt(item.price)}{item.hasSides ? ` · +${item.sidesRequired} sides` : ""}</div>
+                </div>
+                <span style={{ color: C.gold, fontSize: 16 }}>✎</span>
+              </button>
+            ))}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "18px 0 10px" }}>
+              <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>Sides</div>
+              <button onClick={() => setAddingSide(true)} style={{ background: C.gold, color: C.purple, border: "none", borderRadius: 8, padding: "6px 12px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>+ Add Side</button>
+            </div>
+            {sides.map(side => (
+              <button key={side.id} onClick={() => setEditingSide(side)} style={{ width: "100%", textAlign: "left", background: C.purple, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, border: `1px solid ${C.purpleLight}`, cursor: "pointer" }}>
+                <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{side.name}</div>
+                <span style={{ color: C.gold, fontSize: 16 }}>✎</span>
+              </button>
+            ))}
+          </div>
+        )}
         {tab === "reports" && (
           <div>
             <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
@@ -1314,6 +1461,22 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, user, addNotific
           </div>
         )}
       </div>
+      {(editingItem || addingItem) && (
+        <MenuItemModal
+          item={editingItem}
+          onSave={saveMenuItem}
+          onDelete={editingItem ? () => deleteMenuItem(editingItem.id) : null}
+          onCancel={() => { setEditingItem(null); setAddingItem(false); }}
+        />
+      )}
+      {(editingSide || addingSide) && (
+        <SideModal
+          side={editingSide}
+          onSave={saveSide}
+          onDelete={editingSide ? () => deleteSide(editingSide.id) : null}
+          onCancel={() => { setEditingSide(null); setAddingSide(false); }}
+        />
+      )}
       {selectedShift && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 400, padding: 20 }}>
           <div style={{ background: C.purpleDark, borderRadius: 16, padding: 20, width: "100%", maxWidth: 420, maxHeight: "80vh", overflowY: "auto", border: `2px solid ${C.gold}` }}>
@@ -1343,138 +1506,4 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, user, addNotific
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {shiftEvents.map(e => (
-                  <div key={e.id} style={{ background: C.purple, borderRadius: 8, padding: "8px 12px", color: C.goldPale, fontSize: 12 }}>
-                    {renderEvent(e)}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default function App() {
-  const [user, setUser] = useState(null);
-  const [pendingStaff, setPendingStaff] = useState(null);
-  const [shiftId, setShiftId] = useState(null);
-  const [tables, setTables] = useState(INITIAL_TABLES);
-  const [menu, setMenu] = useState(INITIAL_MENU);
-  const [sides, setSides] = useState(SIDES);
-  const [notification, setNotification] = useState(null);
-  const [loaded, setLoaded] = useState(false);
-  const lastNotifCheck = useRef(new Date().toISOString());
-
-  const handlePinMatch = useCallback(async (staff) => {
-    const { data } = await supabase.from("shifts").select("id").eq("staff_id", staff.id).is("clock_out", null).order("clock_in", { ascending: false }).limit(1);
-    if (data && data.length) {
-      setShiftId(data[0].id);
-      setUser(staff);
-    } else {
-      setPendingStaff(staff);
-    }
-  }, []);
-
-  const handleClockIn = useCallback(async () => {
-    const { data, error } = await supabase.from("shifts").insert({ staff_id: pendingStaff.id, staff_name: pendingStaff.name, role: pendingStaff.role }).select().single();
-    if (!error && data) {
-      setShiftId(data.id);
-      setUser(pendingStaff);
-      setPendingStaff(null);
-    }
-  }, [pendingStaff]);
-
-  const handleClockOut = useCallback(async () => {
-    if (user) {
-      const activeTables = tables.filter(t => t.waiterId === user.id && (t.status === "occupied" || t.status === "bill"));
-      if (activeTables.length > 0) {
-        addNotification(`Close out ${activeTables.length} active table${activeTables.length > 1 ? "s" : ""} before clocking out`);
-        return;
-      }
-    }
-    if (shiftId) {
-      await supabase.from("shifts").update({ clock_out: new Date().toISOString() }).eq("id", shiftId);
-    }
-    setUser(null);
-    setShiftId(null);
-  }, [shiftId, user, tables]);
-
-  useEffect(() => {
-    if (!user || (user.role !== "manager" && user.role !== "kitchen")) return;
-    const poll = async () => {
-      const { data } = await supabase.from("notifications").select("*").gt("created_at", lastNotifCheck.current).ilike("target_roles", `%${user.role}%`).order("created_at");
-      if (data && data.length) {
-        data.forEach(n => addNotification(n.message));
-        lastNotifCheck.current = data[data.length - 1].created_at;
-      }
-    };
-    const iv = setInterval(poll, 10000);
-    return () => clearInterval(iv);
-  }, [user]);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const [tRes, mRes, sRes] = await Promise.all([
-          supabase.from("tables").select("*").order("id"),
-          supabase.from("menu_items").select("*").order("id"),
-          supabase.from("sides").select("*").order("id"),
-        ]);
-        if (tRes.data?.length) setTables(tRes.data.map(rowToTable));
-        if (mRes.data?.length) setMenu(mRes.data.map(rowToMenu));
-        if (sRes.data?.length) setSides(sRes.data.map(rowToSide));
-      } catch (e) {
-        console.error("Load failed", e);
-      } finally {
-        setLoaded(true);
-      }
-    })();
-  }, []);
-
-  useEffect(() => {
-    if (!loaded) return;
-    (async () => {
-      const { error } = await supabase.from("tables").upsert(tables.map(tableToRow));
-      if (error) console.error("Save tables failed", error);
-      const currentIds = tables.map(t => t.id);
-      const { data: takeawayRows } = await supabase.from("tables").select("id").gte("id", 100);
-      const toDelete = (takeawayRows || []).filter(r => !currentIds.includes(r.id)).map(r => r.id);
-      if (toDelete.length) await supabase.from("tables").delete().in("id", toDelete);
-    })();
-  }, [tables, loaded]);
-
-  useEffect(() => {
-    if (!loaded) return;
-    supabase.from("menu_items").upsert(menu.map(menuToRow)).then(({ error }) => { if (error) console.error("Save menu failed", error); });
-  }, [menu, loaded]);
-
-  useEffect(() => {
-    if (!loaded) return;
-    supabase.from("sides").upsert(sides.map(sideToRow)).then(({ error }) => { if (error) console.error("Save sides failed", error); });
-  }, [sides, loaded]);
-
-  const addNotification = useCallback((msg) => {
-    setNotification(msg);
-    setTimeout(() => setNotification(null), 3500);
-  }, []);
-
-  if (!user && pendingStaff) return <ClockInScreen staff={pendingStaff} onClockIn={handleClockIn} onCancel={() => setPendingStaff(null)} />;
-  if (!user) return <PinLogin onLogin={handlePinMatch} />;
-
-  const props = { tables, setTables, menu, setMenu, sides, setSides, user, addNotification };
-
-  return (
-    <div style={{ fontFamily: "'Segoe UI', system-ui, sans-serif", maxWidth: 480, margin: "0 auto", minHeight: "100vh", background: C.purpleDark }}>
-      {notification && <Notification msg={notification} onClose={() => setNotification(null)} />}
-      {user.role === "receptionist" && <ReceptionistView {...props} />}
-      {user.role === "waiter" && <WaiterView {...props} />}
-      {user.role === "kitchen" && <KitchenView {...props} />}
-      {user.role === "cashier" && <CashierView {...props} />}
-      {user.role === "stock" && <StockView {...props} />}
-      {user.role === "manager" && <ManagerView {...props} />}
-      <button onClick={handleClockOut} style={{ position: "fixed", bottom: 16, right: 16, zIndex: 500, background: C.purple, border: `2px solid ${C.gold}`, borderRadius: 50, color: C.gold, fontWeight: 700, fontSize: 11, cursor: "pointer", padding: "7px 13px", boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}>Clock Out</button>
-    </div>
-  );
-}
+                  <div key={e.id} style={{ background: C.purple, borderRadius: 8, padding: "8px 12px", color: C.goldP
