@@ -642,6 +642,12 @@ const CashierView = ({ tables, setTables, user }) => {
         staff_id: user.id, staff_name: user.name, role: "cashier",
         event_type: "payment_processed", details: { label, amount },
       });
+      const items = t.order.map(o => ({ name: o.name, qty: o.qty, price: o.price }));
+      await supabase.from("sales").insert({
+        table_label: label, waiter_id: t.waiterId || null,
+        waiter_name: t.waiterId ? (STAFF.find(s => s.id === t.waiterId)?.name || t.waiterId) : null,
+        items, amount,
+      });
     }
     setTables(prev => {
       if (t && t.isTakeaway) return prev.filter(x => x.id !== tableId);
@@ -997,6 +1003,43 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, user, addNotific
   const [showTakeaway, setShowTakeaway] = useState(false);
   const [onShift, setOnShift] = useState([]);
   const [history, setHistory] = useState([]);
+  const [sales, setSales] = useState([]);
+  const [reportRange, setReportRange] = useState("today");
+
+  useEffect(() => {
+    const loadSales = async () => {
+      const since = new Date();
+      since.setDate(since.getDate() - 30);
+      const { data } = await supabase.from("sales").select("*").gte("created_at", since.toISOString()).order("created_at", { ascending: false });
+      setSales(data || []);
+    };
+    loadSales();
+    const iv = setInterval(loadSales, 20000);
+    return () => clearInterval(iv);
+  }, []);
+
+  const filteredSales = (() => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfWeek = new Date(startOfToday);
+    startOfWeek.setDate(startOfWeek.getDate() - 6);
+    const cutoff = reportRange === "today" ? startOfToday : startOfWeek;
+    return sales.filter(s => new Date(s.created_at) >= cutoff);
+  })();
+
+  const reportTotal = filteredSales.reduce((sum, s) => sum + Number(s.amount || 0), 0);
+  const reportCount = filteredSales.length;
+  const itemTotals = {};
+  filteredSales.forEach(s => (s.items || []).forEach(it => {
+    itemTotals[it.name] = (itemTotals[it.name] || 0) + it.qty;
+  }));
+  const topItems = Object.entries(itemTotals).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const waiterTotals = {};
+  filteredSales.forEach(s => {
+    if (!s.waiter_name) return;
+    waiterTotals[s.waiter_name] = (waiterTotals[s.waiter_name] || 0) + Number(s.amount || 0);
+  });
+  const topWaiters = Object.entries(waiterTotals).sort((a, b) => b[1] - a[1]);
   const [selectedShift, setSelectedShift] = useState(null);
   const [shiftEvents, setShiftEvents] = useState([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
@@ -1099,7 +1142,7 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, user, addNotific
         ))}
       </div>
       <div style={{ display: "flex", margin: "12px 16px 0", borderRadius: 10, overflow: "hidden", border: `1px solid ${C.purpleLight}` }}>
-        {[["floor","Floor"], ["tables","Tables"], ["staff","Staff"], ["stock","Stock"], ["history","History"]].map(([k, l]) => (
+        {[["floor","Floor"], ["tables","Tables"], ["staff","Staff"], ["stock","Stock"], ["reports","Reports"], ["history","History"]].map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} style={{ flex: 1, padding: "10px 2px", background: tab === k ? C.gold : C.purple, color: tab === k ? C.purple : C.goldPale, border: "none", fontWeight: 700, fontSize: 11, cursor: "pointer" }}>{l}</button>
         ))}
       </div>
@@ -1200,6 +1243,50 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, user, addNotific
                 <span style={{ color: stockColor(side.stock), fontWeight: 800 }}>{side.stock}</span>
               </div>
             ))}
+          </div>
+        )}
+        {tab === "reports" && (
+          <div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+              <button onClick={() => setReportRange("today")} style={{ flex: 1, padding: "8px", borderRadius: 8, border: `2px solid ${reportRange === "today" ? C.gold : C.purpleLight}`, background: reportRange === "today" ? C.gold : "transparent", color: reportRange === "today" ? C.purple : C.goldPale, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>Today</button>
+              <button onClick={() => setReportRange("week")} style={{ flex: 1, padding: "8px", borderRadius: 8, border: `2px solid ${reportRange === "week" ? C.gold : C.purpleLight}`, background: reportRange === "week" ? C.gold : "transparent", color: reportRange === "week" ? C.purple : C.goldPale, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>Last 7 Days</button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+              <div style={{ background: C.purple, borderRadius: 12, padding: 16, border: `1px solid ${C.purpleLight}` }}>
+                <div style={{ color: C.greenLight, fontWeight: 900, fontSize: 22 }}>{fmt(reportTotal)}</div>
+                <div style={{ color: C.goldPale, fontSize: 11 }}>Total Revenue</div>
+              </div>
+              <div style={{ background: C.purple, borderRadius: 12, padding: 16, border: `1px solid ${C.purpleLight}` }}>
+                <div style={{ color: C.gold, fontWeight: 900, fontSize: 22 }}>{reportCount}</div>
+                <div style={{ color: C.goldPale, fontSize: 11 }}>Orders Closed</div>
+              </div>
+            </div>
+            <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13, marginBottom: 10 }}>🔥 TOP SELLING ITEMS</div>
+            {topItems.length === 0 ? (
+              <div style={{ color: C.gray500, fontSize: 12, marginBottom: 20 }}>No sales recorded in this period yet</div>
+            ) : (
+              <div style={{ marginBottom: 20 }}>
+                {topItems.map(([name, qty], i) => (
+                  <div key={name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: C.purple, borderRadius: 8, padding: "8px 12px", marginBottom: 6 }}>
+                    <span style={{ color: C.goldPale, fontSize: 13 }}>{i + 1}. {name}</span>
+                    <span style={{ color: C.gold, fontWeight: 700, fontSize: 13 }}>{qty} sold</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13, marginBottom: 10 }}>💰 REVENUE BY WAITER</div>
+            {topWaiters.length === 0 ? (
+              <div style={{ color: C.gray500, fontSize: 12 }}>No waiter sales in this period yet</div>
+            ) : (
+              <div>
+                {topWaiters.map(([name, amt]) => (
+                  <div key={name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: C.purple, borderRadius: 8, padding: "8px 12px", marginBottom: 6 }}>
+                    <span style={{ color: C.goldPale, fontSize: 13 }}>{name}</span>
+                    <span style={{ color: C.greenLight, fontWeight: 700, fontSize: 13 }}>{fmt(amt)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
         {tab === "history" && (
