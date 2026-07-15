@@ -1501,3 +1501,227 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
                     <span style={{ color: C.greenLight, fontWeight: 700, fontSize: 13 }}>{fmt(amt)}</span>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+        {tab === "history" && (
+          <div>
+            <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13, marginBottom: 10 }}>SHIFT HISTORY</div>
+            {history.length === 0 ? (
+              <div style={{ color: C.gray500, fontSize: 12 }}>No completed shifts yet</div>
+            ) : history.map(s => (
+              <button key={s.id} onClick={() => openShiftDetail(s)} style={{ background: C.purple, borderRadius: 10, padding: "12px 14px", marginBottom: 8, border: `1px solid ${C.purpleLight}`, width: "100%", textAlign: "left", cursor: "pointer" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{s.staff_name}</div>
+                  <div style={{ color: C.gray500, fontSize: 11, textTransform: "uppercase" }}>{s.role}</div>
+                </div>
+                <div style={{ color: C.gray300, fontSize: 11, marginBottom: 6 }}>
+                  {new Date(s.clock_in).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })} → {new Date(s.clock_out).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </div>
+                <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+                  <div style={{ color: C.gold, fontSize: 12, fontWeight: 700 }}>{s.tables_served || 0} tables</div>
+                  <div style={{ color: C.greenLight, fontSize: 12, fontWeight: 700 }}>{fmt(s.revenue || 0)}</div>
+                  {s.role === "stock" && <div style={{ color: C.teal, fontSize: 12, fontWeight: 700 }}>{s.stock_updates || 0} stock updates</div>}
+                  <div style={{ color: C.gray500, fontSize: 11, marginLeft: "auto" }}>Tap for details →</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {(editingItem || addingItem) && (
+        <MenuItemModal
+          item={editingItem}
+          onSave={saveMenuItem}
+          onDelete={editingItem ? () => deleteMenuItem(editingItem.id) : null}
+          onCancel={() => { setEditingItem(null); setAddingItem(false); }}
+        />
+      )}
+      {(editingSide || addingSide) && (
+        <SideModal
+          side={editingSide}
+          onSave={saveSide}
+          onDelete={editingSide ? () => deleteSide(editingSide.id) : null}
+          onCancel={() => { setEditingSide(null); setAddingSide(false); }}
+        />
+      )}
+      {selectedShift && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 400, padding: 20 }}>
+          <div style={{ background: C.purpleDark, borderRadius: 16, padding: 20, width: "100%", maxWidth: 420, maxHeight: "80vh", overflowY: "auto", border: `2px solid ${C.gold}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
+              <div>
+                <div style={{ color: C.gold, fontWeight: 800, fontSize: 18 }}>{selectedShift.staff_name}</div>
+                <div style={{ color: C.goldPale, fontSize: 12, textTransform: "uppercase", letterSpacing: 1 }}>{selectedShift.role}</div>
+              </div>
+              <button onClick={() => setSelectedShift(null)} style={{ background: "none", border: "none", color: C.gold, fontSize: 22, cursor: "pointer" }}>✕</button>
+            </div>
+            <div style={{ color: C.gray300, fontSize: 12, marginBottom: 4 }}>
+              Clocked in: {new Date(selectedShift.clock_in).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+            </div>
+            <div style={{ color: C.gray300, fontSize: 12, marginBottom: 16 }}>
+              Clocked out: {selectedShift.clock_out ? new Date(selectedShift.clock_out).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "Still on shift"}
+            </div>
+            <div style={{ display: "flex", gap: 14, marginBottom: 18, flexWrap: "wrap" }}>
+              <div style={{ color: C.gold, fontSize: 13, fontWeight: 700 }}>{selectedShift.tables_served || 0} tables served</div>
+              <div style={{ color: C.greenLight, fontSize: 13, fontWeight: 700 }}>{fmt(selectedShift.revenue || 0)} revenue</div>
+              {selectedShift.role === "stock" && <div style={{ color: C.teal, fontSize: 13, fontWeight: 700 }}>{selectedShift.stock_updates || 0} stock updates</div>}
+            </div>
+            <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13, marginBottom: 8 }}>ACTIVITY LOG</div>
+            {loadingEvents ? (
+              <div style={{ color: C.gray500, fontSize: 12 }}>Loading...</div>
+            ) : shiftEvents.length === 0 ? (
+              <div style={{ color: C.gray500, fontSize: 12 }}>No recorded activity for this shift</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {shiftEvents.map(e => (
+                  <div key={e.id} style={{ background: C.purple, borderRadius: 8, padding: "8px 12px", color: C.goldPale, fontSize: 12 }}>
+                    {renderEvent(e)}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [pendingStaff, setPendingStaff] = useState(null);
+  const [shiftId, setShiftId] = useState(null);
+  const [tables, setTables] = useState(INITIAL_TABLES);
+  const [menu, setMenu] = useState(INITIAL_MENU);
+  const [sides, setSides] = useState(SIDES);
+  const [notification, setNotification] = useState(null);
+  const [loaded, setLoaded] = useState(false);
+  const lastNotifCheck = useRef(new Date().toISOString());
+
+  const handlePinMatch = useCallback(async (staff) => {
+    const { data } = await supabase.from("shifts").select("id").eq("staff_id", staff.id).is("clock_out", null).order("clock_in", { ascending: false }).limit(1);
+    if (data && data.length) {
+      setShiftId(data[0].id);
+      setUser(staff);
+    } else {
+      setPendingStaff(staff);
+    }
+  }, []);
+
+  const handleClockIn = useCallback(async () => {
+    const { data, error } = await supabase.from("shifts").insert({ staff_id: pendingStaff.id, staff_name: pendingStaff.name, role: pendingStaff.role }).select().single();
+    if (!error && data) {
+      setShiftId(data.id);
+      setUser(pendingStaff);
+      setPendingStaff(null);
+    }
+  }, [pendingStaff]);
+
+  const handleClockOut = useCallback(async () => {
+    if (user) {
+      const activeTables = tables.filter(t => t.waiterId === user.id && (t.status === "occupied" || t.status === "bill"));
+      if (activeTables.length > 0) {
+        addNotification(`Close out ${activeTables.length} active table${activeTables.length > 1 ? "s" : ""} before clocking out`);
+        return;
+      }
+    }
+    if (shiftId) {
+      await supabase.from("shifts").update({ clock_out: new Date().toISOString() }).eq("id", shiftId);
+    }
+    setUser(null);
+    setShiftId(null);
+  }, [shiftId, user, tables]);
+
+  useEffect(() => {
+    if (!user || (user.role !== "manager" && user.role !== "kitchen")) return;
+    const poll = async () => {
+      const { data } = await supabase.from("notifications").select("*").gt("created_at", lastNotifCheck.current).ilike("target_roles", `%${user.role}%`).order("created_at");
+      if (data && data.length) {
+        data.forEach(n => addNotification(n.message));
+        lastNotifCheck.current = data[data.length - 1].created_at;
+      }
+    };
+    const iv = setInterval(poll, 10000);
+    return () => clearInterval(iv);
+  }, [user]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [tRes, mRes, sRes] = await Promise.all([
+          supabase.from("tables").select("*").order("id"),
+          supabase.from("menu_items").select("*").order("id"),
+          supabase.from("sides").select("*").order("id"),
+        ]);
+        if (tRes.data?.length) setTables(tRes.data.map(rowToTable));
+        if (mRes.data?.length) setMenu(mRes.data.map(rowToMenu));
+        if (sRes.data?.length) setSides(sRes.data.map(rowToSide));
+      } catch (e) {
+        console.error("Load failed", e);
+      } finally {
+        setLoaded(true);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!loaded) return;
+    (async () => {
+      const { error } = await supabase.from("tables").upsert(tables.map(tableToRow));
+      if (error) console.error("Save tables failed", error);
+      const currentIds = tables.map(t => t.id);
+      const { data: takeawayRows } = await supabase.from("tables").select("id").gte("id", 100);
+      const toDelete = (takeawayRows || []).filter(r => !currentIds.includes(r.id)).map(r => r.id);
+      if (toDelete.length) await supabase.from("tables").delete().in("id", toDelete);
+    })();
+  }, [tables, loaded]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    (async () => {
+      const { error } = await supabase.from("menu_items").upsert(menu.map(menuToRow));
+      if (error) console.error("Save menu failed", error);
+      const currentIds = menu.map(m => m.id);
+      const { data: existing } = await supabase.from("menu_items").select("id");
+      const toDelete = (existing || []).filter(r => !currentIds.includes(r.id)).map(r => r.id);
+      if (toDelete.length) await supabase.from("menu_items").delete().in("id", toDelete);
+    })();
+  }, [menu, loaded]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    (async () => {
+      const { error } = await supabase.from("sides").upsert(sides.map(sideToRow));
+      if (error) console.error("Save sides failed", error);
+      const currentIds = sides.map(s => s.id);
+      const { data: existing } = await supabase.from("sides").select("id");
+      const toDelete = (existing || []).filter(r => !currentIds.includes(r.id)).map(r => r.id);
+      if (toDelete.length) await supabase.from("sides").delete().in("id", toDelete);
+    })();
+  }, [sides, loaded]);
+
+  const addNotification = useCallback((msg) => {
+    setNotification(msg);
+    setTimeout(() => setNotification(null), 3500);
+  }, []);
+
+  if (!user && pendingStaff) return <ClockInScreen staff={pendingStaff} onClockIn={handleClockIn} onCancel={() => setPendingStaff(null)} />;
+  if (!user) return <PinLogin onLogin={handlePinMatch} />;
+
+  const props = { tables, setTables, menu, setMenu, sides, setSides, user, addNotification };
+
+  return (
+    <div style={{ fontFamily: "'Segoe UI', system-ui, sans-serif", maxWidth: 480, margin: "0 auto", minHeight: "100vh", background: C.purpleDark }}>
+      {notification && <Notification msg={notification} onClose={() => setNotification(null)} />}
+      {user.role === "receptionist" && <ReceptionistView {...props} />}
+      {user.role === "waiter" && <WaiterView {...props} />}
+      {user.role === "kitchen" && <KitchenView {...props} />}
+      {user.role === "bar" && <BarView {...props} />}
+      {user.role === "cashier" && <CashierView {...props} />}
+      {user.role === "stock" && <StockView {...props} />}
+      {user.role === "manager" && <ManagerView {...props} />}
+      <button onClick={handleClockOut} style={{ position: "fixed", bottom: 16, right: 16, zIndex: 500, background: C.purple, border: `2px solid ${C.gold}`, borderRadius: 50, color: C.gold, fontWeight: 700, fontSize: 11, cursor: "pointer", padding: "7px 13px", boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}>Clock Out</button>
+    </div>
+  );
+   }
