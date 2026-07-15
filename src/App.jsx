@@ -13,6 +13,7 @@ const tableToRow = (t) => ({
   reservation: t.reservation, is_takeaway: t.isTakeaway,
   takeaway_number: t.takeawayNumber, customer_name: t.customerName || null,
   opened_ts: t.openedTs || null,
+  kitchen_ready_at: t.kitchenReadyAt || null, bar_ready_at: t.barReadyAt || null,
 });
 const rowToTable = (r) => ({
   id: r.id, status: r.status, guests: r.guests, waiterId: r.waiter_id,
@@ -20,6 +21,7 @@ const rowToTable = (r) => ({
   reservation: r.reservation, isTakeaway: r.is_takeaway,
   takeawayNumber: r.takeaway_number, customerName: r.customer_name,
   openedTs: r.opened_ts || null,
+  kitchenReadyAt: r.kitchen_ready_at || null, barReadyAt: r.bar_ready_at || null,
 });
 const menuToRow = (m) => ({ id: m.id, name: m.name, category: m.category, price: m.price, stock: m.stock, has_sides: m.hasSides, sides_required: m.sidesRequired });
 const rowToMenu = (r) => ({ id: r.id, name: r.name, category: r.category, price: r.price, stock: r.stock, hasSides: r.has_sides, sidesRequired: r.sides_required });
@@ -73,6 +75,7 @@ const STAFF = [
   { id: "w1", name: "Amara", role: "waiter", pin: "1234" },
   { id: "w2", name: "Tendai", role: "waiter", pin: "2345" },
   { id: "k1", name: "Chef Moyo", role: "kitchen", pin: "3456" },
+  { id: "b1", name: "Kuda", role: "bar", pin: "6789" },
   { id: "c1", name: "Rudo", role: "cashier", pin: "4567" },
   { id: "st1", name: "Farai", role: "stock", pin: "5678" },
   { id: "m1", name: "Manager", role: "manager", pin: "0000" },
@@ -356,8 +359,8 @@ const OrderPanel = ({ activeTable, setActiveTable, tables, setTables, menu, side
   };
 
   const sendToKitchen = () => {
-    syncActive(activeTable.id, t => ({ ...t, orderSentAt: nowTime() }));
-    addNotification(`${activeTable.isTakeaway ? "Takeaway " + activeTable.takeawayNumber : "Table " + activeTable.id} order sent to kitchen`);
+    syncActive(activeTable.id, t => ({ ...t, orderSentAt: nowTime(), kitchenReadyAt: null, barReadyAt: null }));
+    addNotification(`${activeTable.isTakeaway ? "Takeaway " + activeTable.takeawayNumber : "Table " + activeTable.id} order sent`);
     onBack();
   };
 
@@ -548,15 +551,19 @@ const WaiterView = ({ tables, setTables, menu, sides, user, addNotification }) =
 };
 
 const KitchenView = ({ tables, setTables, menu, setMenu, sides, setSides, user, addNotification }) => {
-  const pending = tables.filter(t => t.status === "occupied" && t.orderSentAt && t.order.length > 0);
+  const isDrink = (o) => { const m = menu.find(x => x.id === o.id); return m && m.category === "Drinks"; };
+  const pending = tables.filter(t => t.status === "occupied" && t.orderSentAt && !t.kitchenReadyAt && t.order.some(o => !isDrink(o)));
   const markReady = (tableId) => {
     const table = tables.find(t => t.id === tableId);
-    setMenu(prev => prev.map(m => { const o = table.order.find(x => x.id === m.id); return o ? { ...m, stock: Math.max(0, m.stock - o.qty) } : m; }));
-    setSides(prev => prev.map(s => { const used = table.order.flatMap(o => o.sides || []).filter(x => x.id === s.id).length; return { ...s, stock: Math.max(0, s.stock - used) }; }));
-    setTables(prev => prev.map(t => t.id === tableId ? { ...t, status: "bill" } : t));
+    const foodItems = table.order.filter(o => !isDrink(o));
+    setMenu(prev => prev.map(m => { const o = foodItems.find(x => x.id === m.id); return o ? { ...m, stock: Math.max(0, m.stock - o.qty) } : m; }));
+    setSides(prev => prev.map(s => { const used = foodItems.flatMap(o => o.sides || []).filter(x => x.id === s.id).length; return { ...s, stock: Math.max(0, s.stock - used) }; }));
+    const hasDrinks = table.order.some(o => isDrink(o));
+    const barDone = !hasDrinks || !!table.barReadyAt;
+    setTables(prev => prev.map(t => t.id === tableId ? { ...t, kitchenReadyAt: nowTime(), status: barDone ? "bill" : t.status } : t));
     const label = table.isTakeaway ? `Takeaway ${table.takeawayNumber}` : `Table ${tableId}`;
-    addNotification(`${label} is ready!`);
-    const items = table.order.map(o => `${o.qty}x ${o.name}`).join(", ");
+    addNotification(barDone ? `${label} is ready!` : `${label} food ready — waiting on bar`);
+    const items = foodItems.map(o => `${o.qty}x ${o.name}`).join(", ");
     supabase.from("shift_events").insert({
       staff_id: user.id, staff_name: user.name, role: "kitchen",
       event_type: "order_ready", details: { label, items },
@@ -579,7 +586,7 @@ const KitchenView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
                 </div>
                 <div style={{ color: C.goldPale, fontSize: 12 }}>Sent {t.orderSentAt}</div>
               </div>
-              {t.order.map((o, i) => (
+              {t.order.filter(o => !isDrink(o)).map((o, i) => (
                 <div key={i} style={{ marginBottom: 8 }}>
                   <div style={{ color: C.goldPale, fontSize: 14, fontWeight: 700 }}>{o.qty}x {o.name}</div>
                   {o.sides && <div style={{ color: C.gray300, fontSize: 12, marginTop: 2 }}>↳ {o.sides.map(s => s.name).join(", ")}</div>}
@@ -609,6 +616,68 @@ const KitchenView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
               <button onClick={() => setSides(p => p.map(s => s.id === side.id ? { ...s, stock: Math.max(0, s.stock - 1) } : s))} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.purpleLight, color: C.gold, fontWeight: 900, cursor: "pointer" }}>-</button>
               <span style={{ color: stockColor(side.stock), fontWeight: 800, minWidth: 22, textAlign: "center" }}>{side.stock}</span>
               <button onClick={() => setSides(p => p.map(s => s.id === side.id ? { ...s, stock: s.stock + 1 } : s))} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.gold, color: C.purple, fontWeight: 900, cursor: "pointer" }}>+</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const BarView = ({ tables, setTables, menu, setMenu, sides, setSides, user, addNotification }) => {
+  const isDrink = (o) => { const m = menu.find(x => x.id === o.id); return m && m.category === "Drinks"; };
+  const pending = tables.filter(t => t.status === "occupied" && t.orderSentAt && !t.barReadyAt && t.order.some(o => isDrink(o)));
+  const markReady = (tableId) => {
+    const table = tables.find(t => t.id === tableId);
+    const drinkItems = table.order.filter(o => isDrink(o));
+    setMenu(prev => prev.map(m => { const o = drinkItems.find(x => x.id === m.id); return o ? { ...m, stock: Math.max(0, m.stock - o.qty) } : m; }));
+    const hasFood = table.order.some(o => !isDrink(o));
+    const kitchenDone = !hasFood || !!table.kitchenReadyAt;
+    setTables(prev => prev.map(t => t.id === tableId ? { ...t, barReadyAt: nowTime(), status: kitchenDone ? "bill" : t.status } : t));
+    const label = table.isTakeaway ? `Takeaway ${table.takeawayNumber}` : `Table ${tableId}`;
+    addNotification(kitchenDone ? `${label} is ready!` : `${label} drinks ready — waiting on kitchen`);
+    const items = drinkItems.map(o => `${o.qty}x ${o.name}`).join(", ");
+    supabase.from("shift_events").insert({
+      staff_id: user.id, staff_name: user.name, role: "bar",
+      event_type: "order_ready", details: { label, items },
+    });
+  };
+
+  const drinkMenu = menu.filter(m => m.category === "Drinks");
+
+  return (
+    <div style={{ minHeight: "100vh", background: C.purpleDark }}>
+      <TopBar user={user} />
+      <div style={{ padding: 16 }}>
+        <h2 style={{ color: C.gold, margin: "0 0 14px", fontSize: 15 }}>🍹 DRINKS QUEUE</h2>
+        {pending.length === 0
+          ? <div style={{ background: C.purple, borderRadius: 12, padding: 40, textAlign: "center" }}><div style={{ fontSize: 36 }}>✅</div><div style={{ color: C.goldPale, marginTop: 10 }}>All caught up!</div></div>
+          : pending.map(t => (
+            <div key={t.id} style={{ background: t.isTakeaway ? C.teal : C.purple, borderRadius: 12, padding: 16, border: `2px solid ${C.gold}`, marginBottom: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+                <div>
+                  <div style={{ color: C.gold, fontWeight: 800, fontSize: 18 }}>{t.isTakeaway ? `🥡 ${t.takeawayNumber}` : `Table ${t.id}`}</div>
+                  {t.isTakeaway && <div style={{ color: C.white, fontSize: 11 }}>{t.customerName}</div>}
+                </div>
+                <div style={{ color: C.goldPale, fontSize: 12 }}>Sent {t.orderSentAt}</div>
+              </div>
+              {t.order.filter(o => isDrink(o)).map((o, i) => (
+                <div key={i} style={{ marginBottom: 8 }}>
+                  <div style={{ color: C.goldPale, fontSize: 14, fontWeight: 700 }}>{o.qty}x {o.name}</div>
+                </div>
+              ))}
+              <Btn onClick={() => markReady(t.id)} color={C.greenLight} textColor={C.white} style={{ marginTop: 10, width: "100%" }}>✓ Mark Ready</Btn>
+            </div>
+          ))}
+
+        <h2 style={{ color: C.gold, margin: "24px 0 12px", fontSize: 15 }}>📦 DRINKS STOCK</h2>
+        {drinkMenu.map(item => (
+          <div key={item.id} style={{ background: C.purple, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, border: `1px solid ${item.stock === 0 ? C.red : item.stock <= 3 ? C.orange : C.purpleLight}` }}>
+            <div><div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{item.name}</div><div style={{ color: stockColor(item.stock), fontSize: 11 }}>{item.stock === 0 ? "OUT" : item.stock <= 3 ? `⚠ ${item.stock} left` : `${item.stock} avail`}</div></div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button onClick={() => setMenu(p => p.map(m => m.id === item.id ? { ...m, stock: Math.max(0, m.stock - 1) } : m))} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.purpleLight, color: C.gold, fontWeight: 900, cursor: "pointer" }}>-</button>
+              <span style={{ color: stockColor(item.stock), fontWeight: 800, minWidth: 22, textAlign: "center" }}>{item.stock}</span>
+              <button onClick={() => setMenu(p => p.map(m => m.id === item.id ? { ...m, stock: m.stock + 1 } : m))} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.gold, color: C.purple, fontWeight: 900, cursor: "pointer" }}>+</button>
             </div>
           </div>
         ))}
@@ -1432,78 +1501,3 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
                     <span style={{ color: C.greenLight, fontWeight: 700, fontSize: 13 }}>{fmt(amt)}</span>
                   </div>
                 ))}
-              </div>
-            )}
-          </div>
-        )}
-        {tab === "history" && (
-          <div>
-            <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13, marginBottom: 10 }}>SHIFT HISTORY</div>
-            {history.length === 0 ? (
-              <div style={{ color: C.gray500, fontSize: 12 }}>No completed shifts yet</div>
-            ) : history.map(s => (
-              <button key={s.id} onClick={() => openShiftDetail(s)} style={{ background: C.purple, borderRadius: 10, padding: "12px 14px", marginBottom: 8, border: `1px solid ${C.purpleLight}`, width: "100%", textAlign: "left", cursor: "pointer" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                  <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{s.staff_name}</div>
-                  <div style={{ color: C.gray500, fontSize: 11, textTransform: "uppercase" }}>{s.role}</div>
-                </div>
-                <div style={{ color: C.gray300, fontSize: 11, marginBottom: 6 }}>
-                  {new Date(s.clock_in).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })} → {new Date(s.clock_out).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                </div>
-                <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-                  <div style={{ color: C.gold, fontSize: 12, fontWeight: 700 }}>{s.tables_served || 0} tables</div>
-                  <div style={{ color: C.greenLight, fontSize: 12, fontWeight: 700 }}>{fmt(s.revenue || 0)}</div>
-                  {s.role === "stock" && <div style={{ color: C.teal, fontSize: 12, fontWeight: 700 }}>{s.stock_updates || 0} stock updates</div>}
-                  <div style={{ color: C.gray500, fontSize: 11, marginLeft: "auto" }}>Tap for details →</div>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-      {(editingItem || addingItem) && (
-        <MenuItemModal
-          item={editingItem}
-          onSave={saveMenuItem}
-          onDelete={editingItem ? () => deleteMenuItem(editingItem.id) : null}
-          onCancel={() => { setEditingItem(null); setAddingItem(false); }}
-        />
-      )}
-      {(editingSide || addingSide) && (
-        <SideModal
-          side={editingSide}
-          onSave={saveSide}
-          onDelete={editingSide ? () => deleteSide(editingSide.id) : null}
-          onCancel={() => { setEditingSide(null); setAddingSide(false); }}
-        />
-      )}
-      {selectedShift && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 400, padding: 20 }}>
-          <div style={{ background: C.purpleDark, borderRadius: 16, padding: 20, width: "100%", maxWidth: 420, maxHeight: "80vh", overflowY: "auto", border: `2px solid ${C.gold}` }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
-              <div>
-                <div style={{ color: C.gold, fontWeight: 800, fontSize: 18 }}>{selectedShift.staff_name}</div>
-                <div style={{ color: C.goldPale, fontSize: 12, textTransform: "uppercase", letterSpacing: 1 }}>{selectedShift.role}</div>
-              </div>
-              <button onClick={() => setSelectedShift(null)} style={{ background: "none", border: "none", color: C.gold, fontSize: 22, cursor: "pointer" }}>✕</button>
-            </div>
-            <div style={{ color: C.gray300, fontSize: 12, marginBottom: 4 }}>
-              Clocked in: {new Date(selectedShift.clock_in).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-            </div>
-            <div style={{ color: C.gray300, fontSize: 12, marginBottom: 16 }}>
-              Clocked out: {selectedShift.clock_out ? new Date(selectedShift.clock_out).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "Still on shift"}
-            </div>
-            <div style={{ display: "flex", gap: 14, marginBottom: 18, flexWrap: "wrap" }}>
-              <div style={{ color: C.gold, fontSize: 13, fontWeight: 700 }}>{selectedShift.tables_served || 0} tables served</div>
-              <div style={{ color: C.greenLight, fontSize: 13, fontWeight: 700 }}>{fmt(selectedShift.revenue || 0)} revenue</div>
-              {selectedShift.role === "stock" && <div style={{ color: C.teal, fontSize: 13, fontWeight: 700 }}>{selectedShift.stock_updates || 0} stock updates</div>}
-            </div>
-            <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13, marginBottom: 8 }}>ACTIVITY LOG</div>
-            {loadingEvents ? (
-              <div style={{ color: C.gray500, fontSize: 12 }}>Loading...</div>
-            ) : shiftEvents.length === 0 ? (
-              <div style={{ color: C.gray500, fontSize: 12 }}>No recorded activity for this shift</div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {shiftEvents.map(e => (
-                  <div key={e.id} style={{ background: C.purple, borderRadius: 8, padding: "8px 12px", color: C.goldP
