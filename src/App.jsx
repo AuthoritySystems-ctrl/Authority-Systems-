@@ -14,6 +14,7 @@ const tableToRow = (t) => ({
   takeaway_number: t.takeawayNumber, customer_name: t.customerName || null,
   opened_ts: t.openedTs || null,
   kitchen_ready_at: t.kitchenReadyAt || null, bar_ready_at: t.barReadyAt || null,
+  order_sent_ts: t.orderSentTs || null,
 });
 const rowToTable = (r) => ({
   id: r.id, status: r.status, guests: r.guests, waiterId: r.waiter_id,
@@ -22,6 +23,7 @@ const rowToTable = (r) => ({
   takeawayNumber: r.takeaway_number, customerName: r.customer_name,
   openedTs: r.opened_ts || null,
   kitchenReadyAt: r.kitchen_ready_at || null, barReadyAt: r.bar_ready_at || null,
+  orderSentTs: r.order_sent_ts || null,
 });
 const menuToRow = (m) => ({ id: m.id, name: m.name, category: m.category, price: m.price, stock: m.stock, has_sides: m.hasSides, sides_required: m.sidesRequired });
 const rowToMenu = (r) => ({ id: r.id, name: r.name, category: r.category, price: r.price, stock: r.stock, hasSides: r.has_sides, sidesRequired: r.sides_required });
@@ -75,6 +77,7 @@ const STAFF = [
   { id: "w1", name: "Amara", role: "waiter", pin: "1234" },
   { id: "w2", name: "Tendai", role: "waiter", pin: "2345" },
   { id: "k1", name: "Chef Moyo", role: "kitchen", pin: "3456" },
+  { id: "lc1", name: "Tapiwa", role: "line_chef", pin: "7890" },
   { id: "b1", name: "Kuda", role: "bar", pin: "6789" },
   { id: "c1", name: "Rudo", role: "cashier", pin: "4567" },
   { id: "st1", name: "Farai", role: "stock", pin: "5678" },
@@ -88,6 +91,14 @@ const orderTotal = (order) => order.reduce((s, o) => s + o.price * o.qty, 0);
 const CATEGORIES = ["Starters", "Mains", "Desserts", "Drinks"];
 const bufToB64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
 const b64ToBuf = (b64) => Uint8Array.from(atob(b64), c => c.charCodeAt(0)).buffer;
+const orderAgeColor = (sentTs) => {
+  if (!sentTs) return null;
+  const mins = (Date.now() - sentTs) / 60000;
+  if (mins >= 30) return "#C0392B";
+  if (mins >= 15) return "#D4A017";
+  return null;
+};
+const orderAgeMins = (sentTs) => sentTs ? Math.floor((Date.now() - sentTs) / 60000) : null;
 
 const Logo = ({ size = 32 }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -254,6 +265,83 @@ const ClockInScreen = ({ staff, onClockIn, onCancel }) => {
   );
 };
 
+const ClockOutSummaryScreen = ({ data, onDone }) => {
+  const fmtTime = (iso) => iso ? new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
+  const roleLabel = { waiter: "Waiter", cashier: "Cashier", bar: "Bar", stock: "Stock", kitchen: "Head Chef", line_chef: "Line Chef", manager: "Manager", receptionist: "Receptionist" }[data.role] || data.role;
+
+  return (
+    <div style={{ minHeight: "100vh", background: C.purpleDark, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div style={{ width: "100%", maxWidth: 380, background: C.purple, borderRadius: 16, padding: 24, border: `2px solid ${C.gold}`, maxHeight: "85vh", overflowY: "auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 18 }}>
+          <div style={{ fontSize: 30 }}>✅</div>
+          <h2 style={{ color: C.gold, margin: "8px 0 2px" }}>Shift Complete</h2>
+          <div style={{ color: C.goldPale, fontSize: 13 }}>{data.name} · {roleLabel}</div>
+        </div>
+        <div style={{ background: C.purpleDark, borderRadius: 10, padding: 14, marginBottom: 16 }}>
+          <div style={{ color: C.goldPale, fontSize: 12, marginBottom: 4 }}>Clocked in: <span style={{ color: C.gold, fontWeight: 700 }}>{fmtTime(data.clockIn)}</span></div>
+          <div style={{ color: C.goldPale, fontSize: 12 }}>Clocked out: <span style={{ color: C.gold, fontWeight: 700 }}>{fmtTime(data.clockOut)}</span></div>
+        </div>
+
+        {(data.role === "waiter" || data.role === "manager") && (
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.purpleLight}` }}><span style={{ color: C.goldPale, fontSize: 13 }}>Tables served</span><span style={{ color: C.gold, fontWeight: 700 }}>{data.tablesServed || 0}</span></div>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.purpleLight}` }}><span style={{ color: C.goldPale, fontSize: 13 }}>Food items sold</span><span style={{ color: C.gold, fontWeight: 700 }}>{data.food || 0}</span></div>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.purpleLight}` }}><span style={{ color: C.goldPale, fontSize: 13 }}>Drink items sold</span><span style={{ color: C.gold, fontWeight: 700 }}>{data.drinks || 0}</span></div>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0" }}><span style={{ color: C.goldPale, fontSize: 13, fontWeight: 700 }}>Total items sold</span><span style={{ color: C.greenLight, fontWeight: 800 }}>{data.total || 0}</span></div>
+          </div>
+        )}
+
+        {data.role === "cashier" && (
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.purpleLight}` }}><span style={{ color: C.goldPale, fontSize: 13 }}>Tables closed</span><span style={{ color: C.gold, fontWeight: 700 }}>{data.tablesClosed || 0}</span></div>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.purpleLight}` }}><span style={{ color: C.goldPale, fontSize: 13 }}>💵 Cash</span><span style={{ color: C.gold, fontWeight: 700 }}>{fmt(data.cash || 0)}</span></div>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.purpleLight}` }}><span style={{ color: C.goldPale, fontSize: 13 }}>💳 Card/Tap</span><span style={{ color: C.gold, fontWeight: 700 }}>{fmt(data.card || 0)}</span></div>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.purpleLight}` }}><span style={{ color: C.goldPale, fontSize: 13 }}>📱 Mobile</span><span style={{ color: C.gold, fontWeight: 700 }}>{fmt(data.mobile || 0)}</span></div>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0" }}><span style={{ color: C.goldPale, fontSize: 13, fontWeight: 700 }}>Total revenue</span><span style={{ color: C.greenLight, fontWeight: 800 }}>{fmt(data.total || 0)}</span></div>
+          </div>
+        )}
+
+        {data.role === "bar" && (
+          <div style={{ marginBottom: 10 }}>
+            {(data.items || []).length === 0 ? (
+              <div style={{ color: C.gray500, fontSize: 12, padding: "8px 0" }}>No drinks served this shift</div>
+            ) : (data.items || []).map(([name, qty]) => (
+              <div key={name} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.purpleLight}` }}><span style={{ color: C.goldPale, fontSize: 13 }}>{name}</span><span style={{ color: C.gold, fontWeight: 700 }}>{qty}</span></div>
+            ))}
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0" }}><span style={{ color: C.goldPale, fontSize: 13, fontWeight: 700 }}>Total drinks served</span><span style={{ color: C.greenLight, fontWeight: 800 }}>{data.total || 0}</span></div>
+          </div>
+        )}
+
+        {data.role === "stock" && (
+          <div style={{ marginBottom: 10 }}>
+            {(data.items || []).length === 0 ? (
+              <div style={{ color: C.gray500, fontSize: 12, padding: "8px 0" }}>No stock updates this shift</div>
+            ) : (data.items || []).map(([name, info]) => (
+              <div key={name} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.purpleLight}` }}>
+                <span style={{ color: C.goldPale, fontSize: 13 }}>{name} <span style={{ color: C.gray500, fontSize: 10 }}>({info.category})</span></span>
+                <span style={{ color: C.gold, fontWeight: 700 }}>{info.stock}</span>
+              </div>
+            ))}
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0" }}><span style={{ color: C.goldPale, fontSize: 13, fontWeight: 700 }}>Total updates sent</span><span style={{ color: C.greenLight, fontWeight: 800 }}>{data.updates || 0}</span></div>
+          </div>
+        )}
+
+        {(data.role === "kitchen" || data.role === "line_chef") && (
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.purpleLight}` }}><span style={{ color: C.goldPale, fontSize: 13 }}>Orders completed</span><span style={{ color: C.gold, fontWeight: 700 }}>{data.ordersCompleted || 0}</span></div>
+            {data.role === "kitchen" && (
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0" }}><span style={{ color: C.goldPale, fontSize: 13 }}>Stock updates made</span><span style={{ color: C.gold, fontWeight: 700 }}>{data.stockUpdates || 0}</span></div>
+            )}
+          </div>
+        )}
+
+        <p style={{ color: C.gray500, fontSize: 11, textAlign: "center", margin: "12px 0 18px" }}>This summary is view-only. If something looks wrong, let your manager know.</p>
+        <Btn onClick={onDone} style={{ width: "100%" }}>Done</Btn>
+      </div>
+    </div>
+  );
+};
+
 const SidesPicker = ({ item, sides, onConfirm, onCancel }) => {
   const [chosen, setChosen] = useState([]);
   const required = item.sidesRequired;
@@ -359,7 +447,7 @@ const OrderPanel = ({ activeTable, setActiveTable, tables, setTables, menu, side
   };
 
   const sendToKitchen = () => {
-    syncActive(activeTable.id, t => ({ ...t, orderSentAt: nowTime(), kitchenReadyAt: null, barReadyAt: null }));
+    syncActive(activeTable.id, t => ({ ...t, orderSentAt: nowTime(), orderSentTs: Date.now(), kitchenReadyAt: null, barReadyAt: null }));
     addNotification(`${activeTable.isTakeaway ? "Takeaway " + activeTable.takeawayNumber : "Table " + activeTable.id} order sent`);
     onBack();
   };
@@ -551,8 +639,25 @@ const WaiterView = ({ tables, setTables, menu, sides, user, addNotification }) =
 };
 
 const KitchenView = ({ tables, setTables, menu, setMenu, sides, setSides, user, addNotification }) => {
+  const [, setTick] = useState(0);
+  useEffect(() => { const iv = setInterval(() => setTick(x => x + 1), 15000); return () => clearInterval(iv); }, []);
+  const [compact, setCompact] = useState(false);
+  const [stockFeed, setStockFeed] = useState([]);
+
+  useEffect(() => {
+    const loadFeed = async () => {
+      const { data } = await supabase.from("shift_events").select("*").eq("role", "stock").eq("event_type", "stock_update").order("created_at", { ascending: false }).limit(15);
+      setStockFeed(data || []);
+    };
+    loadFeed();
+    const iv = setInterval(loadFeed, 15000);
+    return () => clearInterval(iv);
+  }, []);
+
   const isDrink = (o) => { const m = menu.find(x => x.id === o.id); return m && m.category === "Drinks"; };
-  const pending = tables.filter(t => t.status === "occupied" && t.orderSentAt && !t.kitchenReadyAt && t.order.some(o => !isDrink(o)));
+  const pending = tables.filter(t => t.status === "occupied" && t.orderSentAt && !t.kitchenReadyAt && t.order.some(o => !isDrink(o)))
+    .sort((a, b) => (a.orderSentTs || 0) - (b.orderSentTs || 0));
+
   const markReady = (tableId) => {
     const table = tables.find(t => t.id === tableId);
     const foodItems = table.order.filter(o => !isDrink(o));
@@ -566,7 +671,142 @@ const KitchenView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
     const items = foodItems.map(o => `${o.qty}x ${o.name}`).join(", ");
     supabase.from("shift_events").insert({
       staff_id: user.id, staff_name: user.name, role: "kitchen",
-      event_type: "order_ready", details: { label, items },
+      event_type: "order_ready", details: { label, items, sentAt: table.orderSentAt, readyAt: nowTime() },
+    });
+  };
+
+  const adjustStock = (kind, id, delta) => {
+    const setter = kind === "menu" ? setMenu : setSides;
+    const list = kind === "menu" ? menu : sides;
+    const item = list.find(x => x.id === id);
+    if (!item) return;
+    const newStock = Math.max(0, item.stock + delta);
+    setter(prev => prev.map(x => x.id === id ? { ...x, stock: newStock } : x));
+    supabase.from("shift_events").insert({
+      staff_id: user.id, staff_name: user.name, role: "kitchen",
+      event_type: "kitchen_stock_update", details: { name: item.name, stock: newStock },
+    });
+    if (delta > 0) {
+      supabase.from("notifications").insert({
+        message: `${user.name} added kitchen stock: ${item.name} now ${newStock}`,
+        target_roles: "line_chef", sender_name: user.name, sender_role: user.role,
+      });
+    }
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: C.purpleDark }}>
+      <TopBar user={user} />
+      <div style={{ padding: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <h2 style={{ color: C.gold, margin: 0, fontSize: 15 }}>🍳 ORDER QUEUE</h2>
+          <button onClick={() => setCompact(v => !v)} style={{ background: compact ? C.gold : C.purple, color: compact ? C.purple : C.goldPale, border: `1px solid ${C.purpleLight}`, borderRadius: 8, padding: "6px 12px", fontWeight: 700, fontSize: 11, cursor: "pointer" }}>{compact ? "Full View" : "Compact View"}</button>
+        </div>
+        {pending.length === 0 ? (
+          <div style={{ background: C.purple, borderRadius: 12, padding: 40, textAlign: "center", marginBottom: 20 }}><div style={{ fontSize: 36 }}>✅</div><div style={{ color: C.goldPale, marginTop: 10 }}>All caught up!</div></div>
+        ) : compact ? (
+          <div style={{ marginBottom: 20 }}>
+            {pending.map(t => (
+              <button key={t.id} onClick={() => markReady(t.id)} style={{ width: "100%", textAlign: "left", background: C.purple, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, border: `2px solid ${orderAgeColor(t.orderSentTs) || C.purpleLight}`, cursor: "pointer" }}>
+                <div>
+                  <div style={{ color: C.gold, fontWeight: 800, fontSize: 14 }}>{t.isTakeaway ? `🥡 ${t.takeawayNumber}` : `Table ${t.id}`}</div>
+                  <div style={{ color: C.gray500, fontSize: 11 }}>{t.order.filter(o => !isDrink(o)).length} food item{t.order.filter(o => !isDrink(o)).length !== 1 ? "s" : ""}</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ color: C.goldPale, fontSize: 11 }}>Sent {t.orderSentAt}</div>
+                  <div style={{ color: orderAgeColor(t.orderSentTs) || C.gray500, fontWeight: 700, fontSize: 12 }}>{orderAgeMins(t.orderSentTs) != null ? `${orderAgeMins(t.orderSentTs)} min` : ""}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div style={{ marginBottom: 20 }}>
+            {pending.map(t => (
+              <div key={t.id} style={{ background: t.isTakeaway ? C.teal : C.purple, borderRadius: 12, padding: 16, border: `2px solid ${orderAgeColor(t.orderSentTs) || C.gold}`, marginBottom: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+                  <div>
+                    <div style={{ color: C.gold, fontWeight: 800, fontSize: 18 }}>{t.isTakeaway ? `🥡 ${t.takeawayNumber}` : `Table ${t.id}`}</div>
+                    {t.isTakeaway && <div style={{ color: C.white, fontSize: 11 }}>{t.customerName}</div>}
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ color: C.goldPale, fontSize: 12 }}>Sent {t.orderSentAt}</div>
+                    {orderAgeMins(t.orderSentTs) != null && <div style={{ color: orderAgeColor(t.orderSentTs) || C.gray500, fontSize: 11, fontWeight: 700 }}>{orderAgeMins(t.orderSentTs)} min ago</div>}
+                  </div>
+                </div>
+                {t.order.filter(o => !isDrink(o)).map((o, i) => (
+                  <div key={i} style={{ marginBottom: 8 }}>
+                    <div style={{ color: C.goldPale, fontSize: 14, fontWeight: 700 }}>{o.qty}x {o.name}</div>
+                    {o.sides && <div style={{ color: C.gray300, fontSize: 12, marginTop: 2 }}>↳ {o.sides.map(s => s.name).join(", ")}</div>}
+                  </div>
+                ))}
+                <Btn onClick={() => markReady(t.id)} color={C.greenLight} textColor={C.white} style={{ marginTop: 10, width: "100%" }}>✓ Mark Ready</Btn>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <h2 style={{ color: C.gold, margin: "0 0 12px", fontSize: 15 }}>📥 STOCK UPDATES FROM TEAM</h2>
+        {stockFeed.length === 0 ? (
+          <div style={{ color: C.gray500, fontSize: 12, marginBottom: 20 }}>No stock updates yet</div>
+        ) : (
+          <div style={{ marginBottom: 20 }}>
+            {stockFeed.map(e => (
+              <div key={e.id} style={{ background: C.purple, borderRadius: 8, padding: "8px 12px", marginBottom: 6, color: C.goldPale, fontSize: 12 }}>
+                <span style={{ color: C.gray500 }}>{new Date(e.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} — </span>{e.details?.message}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <h2 style={{ color: C.gold, margin: "24px 0 12px", fontSize: 15 }}>📦 STOCK</h2>
+        <div style={{ color: C.goldPale, fontSize: 12, marginBottom: 8, fontWeight: 700 }}>Menu Items</div>
+        {menu.map(item => (
+          <div key={item.id} style={{ background: C.purple, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, border: `1px solid ${item.stock === 0 ? C.red : item.stock <= 3 ? C.orange : C.purpleLight}` }}>
+            <div><div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{item.name}</div><div style={{ color: stockColor(item.stock), fontSize: 11 }}>{item.stock === 0 ? "OUT" : item.stock <= 3 ? `⚠ ${item.stock} left` : `${item.stock} avail`}</div></div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button onClick={() => adjustStock("menu", item.id, -1)} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.purpleLight, color: C.gold, fontWeight: 900, cursor: "pointer" }}>-</button>
+              <span style={{ color: stockColor(item.stock), fontWeight: 800, minWidth: 22, textAlign: "center" }}>{item.stock}</span>
+              <button onClick={() => adjustStock("menu", item.id, 1)} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.gold, color: C.purple, fontWeight: 900, cursor: "pointer" }}>+</button>
+            </div>
+          </div>
+        ))}
+        <div style={{ color: C.goldPale, fontSize: 12, margin: "14px 0 8px", fontWeight: 700 }}>Sides</div>
+        {sides.map(side => (
+          <div key={side.id} style={{ background: C.purple, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, border: `1px solid ${side.stock === 0 ? C.red : side.stock <= 3 ? C.orange : C.purpleLight}` }}>
+            <div><div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{side.name}</div><div style={{ color: stockColor(side.stock), fontSize: 11 }}>{side.stock === 0 ? "OUT OF STOCK" : side.stock <= 3 ? `⚠ ${side.stock} left` : `${side.stock} avail`}</div></div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button onClick={() => adjustStock("sides", side.id, -1)} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.purpleLight, color: C.gold, fontWeight: 900, cursor: "pointer" }}>-</button>
+              <span style={{ color: stockColor(side.stock), fontWeight: 800, minWidth: 22, textAlign: "center" }}>{side.stock}</span>
+              <button onClick={() => adjustStock("sides", side.id, 1)} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.gold, color: C.purple, fontWeight: 900, cursor: "pointer" }}>+</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const LineChefView = ({ tables, setTables, menu, setMenu, sides, setSides, user, addNotification }) => {
+  const [, setTick] = useState(0);
+  useEffect(() => { const iv = setInterval(() => setTick(x => x + 1), 15000); return () => clearInterval(iv); }, []);
+  const isDrink = (o) => { const m = menu.find(x => x.id === o.id); return m && m.category === "Drinks"; };
+  const pending = tables.filter(t => t.status === "occupied" && t.orderSentAt && !t.kitchenReadyAt && t.order.some(o => !isDrink(o)))
+    .sort((a, b) => (a.orderSentTs || 0) - (b.orderSentTs || 0));
+
+  const markReady = (tableId) => {
+    const table = tables.find(t => t.id === tableId);
+    const foodItems = table.order.filter(o => !isDrink(o));
+    setMenu(prev => prev.map(m => { const o = foodItems.find(x => x.id === m.id); return o ? { ...m, stock: Math.max(0, m.stock - o.qty) } : m; }));
+    setSides(prev => prev.map(s => { const used = foodItems.flatMap(o => o.sides || []).filter(x => x.id === s.id).length; return { ...s, stock: Math.max(0, s.stock - used) }; }));
+    const hasDrinks = table.order.some(o => isDrink(o));
+    const barDone = !hasDrinks || !!table.barReadyAt;
+    setTables(prev => prev.map(t => t.id === tableId ? { ...t, kitchenReadyAt: nowTime(), status: barDone ? "bill" : t.status } : t));
+    const label = table.isTakeaway ? `Takeaway ${table.takeawayNumber}` : `Table ${tableId}`;
+    addNotification(barDone ? `${label} is ready!` : `${label} food ready — waiting on bar`);
+    const items = foodItems.map(o => `${o.qty}x ${o.name}`).join(", ");
+    supabase.from("shift_events").insert({
+      staff_id: user.id, staff_name: user.name, role: "line_chef",
+      event_type: "order_ready", details: { label, items, sentAt: table.orderSentAt, readyAt: nowTime() },
     });
   };
 
@@ -578,13 +818,16 @@ const KitchenView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
         {pending.length === 0
           ? <div style={{ background: C.purple, borderRadius: 12, padding: 40, textAlign: "center" }}><div style={{ fontSize: 36 }}>✅</div><div style={{ color: C.goldPale, marginTop: 10 }}>All caught up!</div></div>
           : pending.map(t => (
-            <div key={t.id} style={{ background: t.isTakeaway ? C.teal : C.purple, borderRadius: 12, padding: 16, border: `2px solid ${C.gold}`, marginBottom: 12 }}>
+            <div key={t.id} style={{ background: t.isTakeaway ? C.teal : C.purple, borderRadius: 12, padding: 16, border: `2px solid ${orderAgeColor(t.orderSentTs) || C.gold}`, marginBottom: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
                 <div>
                   <div style={{ color: C.gold, fontWeight: 800, fontSize: 18 }}>{t.isTakeaway ? `🥡 ${t.takeawayNumber}` : `Table ${t.id}`}</div>
                   {t.isTakeaway && <div style={{ color: C.white, fontSize: 11 }}>{t.customerName}</div>}
                 </div>
-                <div style={{ color: C.goldPale, fontSize: 12 }}>Sent {t.orderSentAt}</div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ color: C.goldPale, fontSize: 12 }}>Sent {t.orderSentAt}</div>
+                  {orderAgeMins(t.orderSentTs) != null && <div style={{ color: orderAgeColor(t.orderSentTs) || C.gray500, fontSize: 11, fontWeight: 700 }}>{orderAgeMins(t.orderSentTs)} min ago</div>}
+                </div>
               </div>
               {t.order.filter(o => !isDrink(o)).map((o, i) => (
                 <div key={i} style={{ marginBottom: 8 }}>
@@ -595,36 +838,14 @@ const KitchenView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
               <Btn onClick={() => markReady(t.id)} color={C.greenLight} textColor={C.white} style={{ marginTop: 10, width: "100%" }}>✓ Mark Ready</Btn>
             </div>
           ))}
-
-        <h2 style={{ color: C.gold, margin: "24px 0 12px", fontSize: 15 }}>📦 STOCK</h2>
-        <div style={{ color: C.goldPale, fontSize: 12, marginBottom: 8, fontWeight: 700 }}>Menu Items</div>
-        {menu.map(item => (
-          <div key={item.id} style={{ background: C.purple, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, border: `1px solid ${item.stock === 0 ? C.red : item.stock <= 3 ? C.orange : C.purpleLight}` }}>
-            <div><div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{item.name}</div><div style={{ color: stockColor(item.stock), fontSize: 11 }}>{item.stock === 0 ? "OUT" : item.stock <= 3 ? `⚠ ${item.stock} left` : `${item.stock} avail`}</div></div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <button onClick={() => setMenu(p => p.map(m => m.id === item.id ? { ...m, stock: Math.max(0, m.stock - 1) } : m))} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.purpleLight, color: C.gold, fontWeight: 900, cursor: "pointer" }}>-</button>
-              <span style={{ color: stockColor(item.stock), fontWeight: 800, minWidth: 22, textAlign: "center" }}>{item.stock}</span>
-              <button onClick={() => setMenu(p => p.map(m => m.id === item.id ? { ...m, stock: m.stock + 1 } : m))} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.gold, color: C.purple, fontWeight: 900, cursor: "pointer" }}>+</button>
-            </div>
-          </div>
-        ))}
-        <div style={{ color: C.goldPale, fontSize: 12, margin: "14px 0 8px", fontWeight: 700 }}>Sides</div>
-        {sides.map(side => (
-          <div key={side.id} style={{ background: C.purple, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, border: `1px solid ${side.stock === 0 ? C.red : side.stock <= 3 ? C.orange : C.purpleLight}` }}>
-            <div><div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{side.name}</div><div style={{ color: stockColor(side.stock), fontSize: 11 }}>{side.stock === 0 ? "OUT OF STOCK" : side.stock <= 3 ? `⚠ ${side.stock} left` : `${side.stock} avail`}</div></div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <button onClick={() => setSides(p => p.map(s => s.id === side.id ? { ...s, stock: Math.max(0, s.stock - 1) } : s))} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.purpleLight, color: C.gold, fontWeight: 900, cursor: "pointer" }}>-</button>
-              <span style={{ color: stockColor(side.stock), fontWeight: 800, minWidth: 22, textAlign: "center" }}>{side.stock}</span>
-              <button onClick={() => setSides(p => p.map(s => s.id === side.id ? { ...s, stock: s.stock + 1 } : s))} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.gold, color: C.purple, fontWeight: 900, cursor: "pointer" }}>+</button>
-            </div>
-          </div>
-        ))}
       </div>
     </div>
   );
 };
 
 const BarView = ({ tables, setTables, menu, setMenu, sides, setSides, user, addNotification }) => {
+  const [, setTick] = useState(0);
+  useEffect(() => { const iv = setInterval(() => setTick(x => x + 1), 15000); return () => clearInterval(iv); }, []);
   const isDrink = (o) => { const m = menu.find(x => x.id === o.id); return m && m.category === "Drinks"; };
   const pending = tables.filter(t => t.status === "occupied" && t.orderSentAt && !t.barReadyAt && t.order.some(o => isDrink(o)));
   const markReady = (tableId) => {
@@ -636,10 +857,13 @@ const BarView = ({ tables, setTables, menu, setMenu, sides, setSides, user, addN
     setTables(prev => prev.map(t => t.id === tableId ? { ...t, barReadyAt: nowTime(), status: kitchenDone ? "bill" : t.status } : t));
     const label = table.isTakeaway ? `Takeaway ${table.takeawayNumber}` : `Table ${tableId}`;
     addNotification(kitchenDone ? `${label} is ready!` : `${label} drinks ready — waiting on kitchen`);
-    const items = drinkItems.map(o => `${o.qty}x ${o.name}`).join(", ");
+    const items = drinkItems.map(o => ({ name: o.name, qty: o.qty }));
     supabase.from("shift_events").insert({
       staff_id: user.id, staff_name: user.name, role: "bar",
       event_type: "order_ready", details: { label, items },
+    });
+    supabase.from("shifts").select("id, bar_orders_ready").eq("staff_id", user.id).is("clock_out", null).limit(1).then(({ data }) => {
+      if (data && data.length) supabase.from("shifts").update({ bar_orders_ready: (data[0].bar_orders_ready || 0) + 1 }).eq("id", data[0].id);
     });
   };
 
@@ -653,13 +877,16 @@ const BarView = ({ tables, setTables, menu, setMenu, sides, setSides, user, addN
         {pending.length === 0
           ? <div style={{ background: C.purple, borderRadius: 12, padding: 40, textAlign: "center" }}><div style={{ fontSize: 36 }}>✅</div><div style={{ color: C.goldPale, marginTop: 10 }}>All caught up!</div></div>
           : pending.map(t => (
-            <div key={t.id} style={{ background: t.isTakeaway ? C.teal : C.purple, borderRadius: 12, padding: 16, border: `2px solid ${C.gold}`, marginBottom: 12 }}>
+            <div key={t.id} style={{ background: t.isTakeaway ? C.teal : C.purple, borderRadius: 12, padding: 16, border: `2px solid ${orderAgeColor(t.orderSentTs) || C.gold}`, marginBottom: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
                 <div>
                   <div style={{ color: C.gold, fontWeight: 800, fontSize: 18 }}>{t.isTakeaway ? `🥡 ${t.takeawayNumber}` : `Table ${t.id}`}</div>
                   {t.isTakeaway && <div style={{ color: C.white, fontSize: 11 }}>{t.customerName}</div>}
                 </div>
-                <div style={{ color: C.goldPale, fontSize: 12 }}>Sent {t.orderSentAt}</div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ color: C.goldPale, fontSize: 12 }}>Sent {t.orderSentAt}</div>
+                  {orderAgeMins(t.orderSentTs) != null && <div style={{ color: orderAgeColor(t.orderSentTs) || C.gray500, fontSize: 11, fontWeight: 700 }}>{orderAgeMins(t.orderSentTs)} min ago</div>}
+                </div>
               </div>
               {t.order.filter(o => isDrink(o)).map((o, i) => (
                 <div key={i} style={{ marginBottom: 8 }}>
@@ -689,7 +916,7 @@ const BarView = ({ tables, setTables, menu, setMenu, sides, setSides, user, addN
 const CashierView = ({ tables, setTables, user }) => {
   const [selectedTable, setSelectedTable] = useState(null);
   const billTables = tables.filter(t => t.status === "bill");
-  const processPay = async (tableId) => {
+  const processPay = async (tableId, method) => {
     const t = tables.find(x => x.id === tableId);
     if (t) {
       const amount = orderTotal(t.order);
@@ -707,20 +934,25 @@ const CashierView = ({ tables, setTables, user }) => {
           event_type: "table_served", details: { label, guests: t.guests, duration, amount },
         });
       }
+      const { data: cData } = await supabase.from("shifts").select("id, payments_processed, payments_total").eq("staff_id", user.id).is("clock_out", null).limit(1);
+      if (cData && cData.length) {
+        const cs = cData[0];
+        await supabase.from("shifts").update({ payments_processed: (cs.payments_processed || 0) + 1, payments_total: (Number(cs.payments_total) || 0) + amount }).eq("id", cs.id);
+      }
       await supabase.from("shift_events").insert({
         staff_id: user.id, staff_name: user.name, role: "cashier",
-        event_type: "payment_processed", details: { label, amount },
+        event_type: "payment_processed", details: { label, amount, method },
       });
       const items = t.order.map(o => ({ name: o.name, qty: o.qty, price: o.price }));
       await supabase.from("sales").insert({
         table_label: label, waiter_id: t.waiterId || null,
         waiter_name: t.waiterId ? (STAFF.find(s => s.id === t.waiterId)?.name || t.waiterId) : null,
-        items, amount,
+        items, amount, payment_method: method, cashier_id: user.id, cashier_name: user.name,
       });
     }
     setTables(prev => {
       if (t && t.isTakeaway) return prev.filter(x => x.id !== tableId);
-      return prev.map(x => x.id === tableId ? { ...x, status: "free", guests: 0, waiterId: null, order: [], orderSentAt: null, openedAt: null, openedTs: null, reservation: null } : x);
+      return prev.map(x => x.id === tableId ? { ...x, status: "free", guests: 0, waiterId: null, order: [], orderSentAt: null, orderSentTs: null, kitchenReadyAt: null, barReadyAt: null, openedAt: null, openedTs: null, reservation: null } : x);
     });
     setSelectedTable(null);
   };
@@ -755,13 +987,13 @@ const CashierView = ({ tables, setTables, user }) => {
         </div>
         <div style={{ color: C.goldPale, fontSize: 13, fontWeight: 700, marginBottom: 10, textAlign: "center" }}>Select payment method</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <button onClick={() => processPay(selTable.id)} style={{ background: C.greenLight, color: C.white, border: "none", borderRadius: 12, padding: "16px", fontWeight: 700, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+          <button onClick={() => processPay(selTable.id, "cash")} style={{ background: C.greenLight, color: C.white, border: "none", borderRadius: 12, padding: "16px", fontWeight: 700, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
             <span style={{ fontSize: 22 }}>💵</span> Cash
           </button>
-          <button onClick={() => processPay(selTable.id)} style={{ background: C.gold, color: C.purple, border: "none", borderRadius: 12, padding: "16px", fontWeight: 700, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+          <button onClick={() => processPay(selTable.id, "card")} style={{ background: C.gold, color: C.purple, border: "none", borderRadius: 12, padding: "16px", fontWeight: 700, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
             <span style={{ fontSize: 22 }}>💳</span> Card / Tap
           </button>
-          <button onClick={() => processPay(selTable.id)} style={{ background: C.blue, color: C.white, border: "none", borderRadius: 12, padding: "16px", fontWeight: 700, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+          <button onClick={() => processPay(selTable.id, "mobile")} style={{ background: C.blue, color: C.white, border: "none", borderRadius: 12, padding: "16px", fontWeight: 700, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
             <span style={{ fontSize: 22 }}>📱</span> Mobile Pay
           </button>
         </div>
@@ -833,6 +1065,10 @@ const StockView = ({ menu, setMenu, sides, setSides, user, addNotification }) =>
     }
     const parts = [...changedMenu.map(m => `${m.name} (${m.stock})`), ...changedSides.map(s => `${s.name} (${s.stock})`)];
     const message = `${user.name} updated stock: ${parts.join(", ")}`;
+    const structuredItems = [
+      ...changedMenu.map(m => ({ name: m.name, stock: m.stock, category: m.category === "Drinks" ? "Drinks" : "Food" })),
+      ...changedSides.map(s => ({ name: s.name, stock: s.stock, category: "Food" })),
+    ];
     setSending(true);
     const { error } = await supabase.from("notifications").insert({ message, target_roles: "manager,kitchen", sender_name: user.name, sender_role: user.role });
     if (!error) {
@@ -842,7 +1078,7 @@ const StockView = ({ menu, setMenu, sides, setSides, user, addNotification }) =>
       }
       await supabase.from("shift_events").insert({
         staff_id: user.id, staff_name: user.name, role: "stock",
-        event_type: "stock_update", details: { message },
+        event_type: "stock_update", details: { message, items: structuredItems },
       });
     }
     setSending(false);
@@ -1212,7 +1448,9 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const startOfWeek = new Date(startOfToday);
     startOfWeek.setDate(startOfWeek.getDate() - 6);
-    const cutoff = reportRange === "today" ? startOfToday : startOfWeek;
+    const startOfMonth = new Date(startOfToday);
+    startOfMonth.setDate(startOfMonth.getDate() - 29);
+    const cutoff = reportRange === "today" ? startOfToday : reportRange === "week" ? startOfWeek : startOfMonth;
     return sales.filter(s => new Date(s.created_at) >= cutoff);
   })();
 
@@ -1245,10 +1483,12 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
   const renderEvent = (e) => {
     const time = new Date(e.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     const d = e.details || {};
+    const itemsStr = (val) => Array.isArray(val) ? val.map(it => `${it.qty != null ? it.qty + "x " : ""}${it.name}${it.stock != null ? ` (${it.stock})` : ""}`).join(", ") : val;
     if (e.event_type === "table_served") return `${time} — ${d.label}: ${d.guests} guest${d.guests === 1 ? "" : "s"}${d.duration != null ? `, ${d.duration} min` : ""}, ${fmt(d.amount || 0)}`;
-    if (e.event_type === "payment_processed") return `${time} — Processed ${d.label}: ${fmt(d.amount || 0)}`;
+    if (e.event_type === "payment_processed") return `${time} — Processed ${d.label}: ${fmt(d.amount || 0)}${d.method ? ` (${d.method})` : ""}`;
     if (e.event_type === "stock_update") return `${time} — ${d.message}`;
-    if (e.event_type === "order_ready") return `${time} — ${d.label} ready: ${d.items}`;
+    if (e.event_type === "kitchen_stock_update") return `${time} — Kitchen stock: ${d.name} now ${d.stock}`;
+    if (e.event_type === "order_ready") return `${time} — ${d.label} ready: ${itemsStr(d.items)}`;
     return `${time} — ${e.event_type}`;
   };
 
@@ -1465,7 +1705,8 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
           <div>
             <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
               <button onClick={() => setReportRange("today")} style={{ flex: 1, padding: "8px", borderRadius: 8, border: `2px solid ${reportRange === "today" ? C.gold : C.purpleLight}`, background: reportRange === "today" ? C.gold : "transparent", color: reportRange === "today" ? C.purple : C.goldPale, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>Today</button>
-              <button onClick={() => setReportRange("week")} style={{ flex: 1, padding: "8px", borderRadius: 8, border: `2px solid ${reportRange === "week" ? C.gold : C.purpleLight}`, background: reportRange === "week" ? C.gold : "transparent", color: reportRange === "week" ? C.purple : C.goldPale, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>Last 7 Days</button>
+              <button onClick={() => setReportRange("week")} style={{ flex: 1, padding: "8px", borderRadius: 8, border: `2px solid ${reportRange === "week" ? C.gold : C.purpleLight}`, background: reportRange === "week" ? C.gold : "transparent", color: reportRange === "week" ? C.purple : C.goldPale, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>Week</button>
+              <button onClick={() => setReportRange("month")} style={{ flex: 1, padding: "8px", borderRadius: 8, border: `2px solid ${reportRange === "month" ? C.gold : C.purpleLight}`, background: reportRange === "month" ? C.gold : "transparent", color: reportRange === "month" ? C.purple : C.goldPale, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>Month</button>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
               <div style={{ background: C.purple, borderRadius: 12, padding: 16, border: `1px solid ${C.purpleLight}` }}>
@@ -1592,12 +1833,64 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [pendingStaff, setPendingStaff] = useState(null);
   const [shiftId, setShiftId] = useState(null);
+  const [shiftSummary, setShiftSummary] = useState(null);
   const [tables, setTables] = useState(INITIAL_TABLES);
   const [menu, setMenu] = useState(INITIAL_MENU);
   const [sides, setSides] = useState(SIDES);
   const [notification, setNotification] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const lastNotifCheck = useRef(new Date().toISOString());
+
+  const computeShiftSummary = async (staff, clockInIso, clockOutIso) => {
+    const base = { name: staff.name, role: staff.role, clockIn: clockInIso, clockOut: clockOutIso };
+    try {
+      if (staff.role === "waiter" || staff.role === "manager") {
+        const { data } = await supabase.from("sales").select("*").eq("waiter_id", staff.id).gte("created_at", clockInIso).lte("created_at", clockOutIso);
+        const rows = data || [];
+        let food = 0, drinks = 0;
+        rows.forEach(s => (s.items || []).forEach(it => {
+          const m = menu.find(x => x.name === it.name);
+          if (m && m.category === "Drinks") drinks += it.qty; else food += it.qty;
+        }));
+        return { ...base, tablesServed: rows.length, food, drinks, total: food + drinks };
+      }
+      if (staff.role === "cashier") {
+        const { data } = await supabase.from("sales").select("*").eq("cashier_id", staff.id).gte("created_at", clockInIso).lte("created_at", clockOutIso);
+        const rows = data || [];
+        const byMethod = { cash: 0, card: 0, mobile: 0 };
+        rows.forEach(s => { const k = s.payment_method || "cash"; byMethod[k] = (byMethod[k] || 0) + Number(s.amount || 0); });
+        const total = rows.reduce((sum, s) => sum + Number(s.amount || 0), 0);
+        return { ...base, tablesClosed: rows.length, cash: byMethod.cash, card: byMethod.card, mobile: byMethod.mobile, total };
+      }
+      if (staff.role === "bar") {
+        const { data } = await supabase.from("shift_events").select("*").eq("staff_id", staff.id).eq("event_type", "order_ready").gte("created_at", clockInIso).lte("created_at", clockOutIso);
+        const rows = data || [];
+        const itemTotals = {};
+        rows.forEach(e => (e.details?.items || []).forEach(it => { itemTotals[it.name] = (itemTotals[it.name] || 0) + (it.qty || 0); }));
+        const total = Object.values(itemTotals).reduce((a, b) => a + b, 0);
+        return { ...base, items: Object.entries(itemTotals), total };
+      }
+      if (staff.role === "stock") {
+        const { data } = await supabase.from("shift_events").select("*").eq("staff_id", staff.id).eq("event_type", "stock_update").gte("created_at", clockInIso).lte("created_at", clockOutIso);
+        const rows = data || [];
+        const itemMap = {};
+        rows.forEach(e => (e.details?.items || []).forEach(it => { itemMap[it.name] = { stock: it.stock, category: it.category }; }));
+        return { ...base, updates: rows.length, items: Object.entries(itemMap) };
+      }
+      if (staff.role === "kitchen") {
+        const { data: readyData } = await supabase.from("shift_events").select("*").eq("staff_id", staff.id).eq("event_type", "order_ready").gte("created_at", clockInIso).lte("created_at", clockOutIso);
+        const { data: stockData } = await supabase.from("shift_events").select("*").eq("staff_id", staff.id).eq("event_type", "kitchen_stock_update").gte("created_at", clockInIso).lte("created_at", clockOutIso);
+        return { ...base, ordersCompleted: (readyData || []).length, stockUpdates: (stockData || []).length };
+      }
+      if (staff.role === "line_chef") {
+        const { data } = await supabase.from("shift_events").select("*").eq("staff_id", staff.id).eq("event_type", "order_ready").gte("created_at", clockInIso).lte("created_at", clockOutIso);
+        return { ...base, ordersCompleted: (data || []).length };
+      }
+      return base;
+    } catch (e) {
+      return base;
+    }
+  };
 
   const handlePinMatch = useCallback(async (staff) => {
     const { data } = await supabase.from("shifts").select("id").eq("staff_id", staff.id).is("clock_out", null).order("clock_in", { ascending: false }).limit(1);
@@ -1626,15 +1919,21 @@ export default function App() {
         return;
       }
     }
-    if (shiftId) {
-      await supabase.from("shifts").update({ clock_out: new Date().toISOString() }).eq("id", shiftId);
+    if (shiftId && user) {
+      const nowIso = new Date().toISOString();
+      const { data } = await supabase.from("shifts").select("clock_in").eq("id", shiftId).single();
+      await supabase.from("shifts").update({ clock_out: nowIso }).eq("id", shiftId);
+      if (data && data.clock_in) {
+        const summary = await computeShiftSummary(user, data.clock_in, nowIso);
+        setShiftSummary(summary);
+      }
     }
     setUser(null);
     setShiftId(null);
-  }, [shiftId, user, tables]);
+  }, [shiftId, user, tables, menu]);
 
   useEffect(() => {
-    if (!user || (user.role !== "manager" && user.role !== "kitchen")) return;
+    if (!user || !["manager", "kitchen", "line_chef"].includes(user.role)) return;
     const poll = async () => {
       const { data } = await supabase.from("notifications").select("*").gt("created_at", lastNotifCheck.current).ilike("target_roles", `%${user.role}%`).order("created_at");
       if (data && data.length) {
@@ -1706,6 +2005,7 @@ export default function App() {
     setTimeout(() => setNotification(null), 3500);
   }, []);
 
+  if (!user && shiftSummary) return <ClockOutSummaryScreen data={shiftSummary} onDone={() => setShiftSummary(null)} />;
   if (!user && pendingStaff) return <ClockInScreen staff={pendingStaff} onClockIn={handleClockIn} onCancel={() => setPendingStaff(null)} />;
   if (!user) return <PinLogin onLogin={handlePinMatch} />;
 
@@ -1717,6 +2017,7 @@ export default function App() {
       {user.role === "receptionist" && <ReceptionistView {...props} />}
       {user.role === "waiter" && <WaiterView {...props} />}
       {user.role === "kitchen" && <KitchenView {...props} />}
+      {user.role === "line_chef" && <LineChefView {...props} />}
       {user.role === "bar" && <BarView {...props} />}
       {user.role === "cashier" && <CashierView {...props} />}
       {user.role === "stock" && <StockView {...props} />}
@@ -1724,4 +2025,4 @@ export default function App() {
       <button onClick={handleClockOut} style={{ position: "fixed", bottom: 16, right: 16, zIndex: 500, background: C.purple, border: `2px solid ${C.gold}`, borderRadius: 50, color: C.gold, fontWeight: 700, fontSize: 11, cursor: "pointer", padding: "7px 13px", boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}>Clock Out</button>
     </div>
   );
-   }
+  }
