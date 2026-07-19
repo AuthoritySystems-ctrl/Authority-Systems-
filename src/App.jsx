@@ -417,7 +417,7 @@ const TakeawayModal = ({ onConfirm, onCancel, existingCount }) => {
   );
 };
 
-const OrderPanel = ({ activeTable, setActiveTable, tables, setTables, menu, sides, userId, addNotification, onBack, showBillButton = true }) => {
+const OrderPanel = ({ activeTable, setActiveTable, tables, setTables, menu, sides, setMenu, setSides, userId, addNotification, onBack, showBillButton = true }) => {
   const [selectedCat, setSelectedCat] = useState("Starters");
   const [sidesPicker, setSidesPicker] = useState(null);
 
@@ -430,24 +430,31 @@ const OrderPanel = ({ activeTable, setActiveTable, tables, setTables, menu, side
     if (item.stock === 0) return;
     if (item.hasSides) { setSidesPicker(item); return; }
     syncActive(activeTable.id, t => {
-      const existing = t.order.find(o => o.id === item.id && !o.sides);
-      return { ...t, order: existing ? t.order.map(o => (o.id === item.id && !o.sides) ? { ...o, qty: o.qty + 1 } : o) : [...t.order, { ...item, qty: 1, sides: null, orderKey: Date.now() + Math.random() }] };
+      const existing = t.order.find(o => o.id === item.id && !o.sides && !o.committed);
+      return { ...t, order: existing ? t.order.map(o => (o === existing) ? { ...o, qty: o.qty + 1 } : o) : [...t.order, { ...item, qty: 1, sides: null, committed: false, orderKey: Date.now() + Math.random() }] };
     });
   };
 
   const confirmSides = (ids) => {
     const item = sidesPicker;
     const chosenSides = ids.map(id => sides.find(s => s.id === id));
-    syncActive(activeTable.id, t => ({ ...t, order: [...t.order, { ...item, qty: 1, sides: chosenSides, orderKey: Date.now() + Math.random() }] }));
+    syncActive(activeTable.id, t => ({ ...t, order: [...t.order, { ...item, qty: 1, sides: chosenSides, committed: false, orderKey: Date.now() + Math.random() }] }));
     setSidesPicker(null);
   };
 
   const removeLine = (key) => {
-    syncActive(activeTable.id, t => ({ ...t, order: t.order.map(o => o.orderKey === key ? { ...o, qty: o.qty - 1 } : o).filter(o => o.qty > 0) }));
+    syncActive(activeTable.id, t => ({ ...t, order: t.order.map(o => (o.orderKey === key && !o.committed) ? { ...o, qty: o.qty - 1 } : o).filter(o => o.qty > 0) }));
   };
 
   const sendToKitchen = () => {
-    syncActive(activeTable.id, t => ({ ...t, orderSentAt: nowTime(), orderSentTs: Date.now(), kitchenReadyAt: null, barReadyAt: null }));
+    const newLines = activeTable.order.filter(o => !o.committed);
+    if (newLines.length === 0) {
+      addNotification("No new items to send");
+      return;
+    }
+    setMenu(prev => prev.map(m => { const o = newLines.find(x => x.id === m.id); return o ? { ...m, stock: Math.max(0, m.stock - o.qty) } : m; }));
+    setSides(prev => prev.map(s => { const used = newLines.flatMap(o => o.sides || []).filter(x => x.id === s.id).length; return used ? { ...s, stock: Math.max(0, s.stock - used) } : s; }));
+    syncActive(activeTable.id, t => ({ ...t, order: t.order.map(o => ({ ...o, committed: true })), orderSentAt: nowTime(), orderSentTs: Date.now(), kitchenReadyAt: null, barReadyAt: null }));
     addNotification(`${activeTable.isTakeaway ? "Takeaway " + activeTable.takeawayNumber : "Table " + activeTable.id} order sent`);
     onBack();
   };
@@ -514,11 +521,12 @@ const OrderPanel = ({ activeTable, setActiveTable, tables, setTables, menu, side
                 <div key={o.orderKey} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
                   <div style={{ flex: 1 }}>
                     <span style={{ color: C.goldPale, fontWeight: 700, fontSize: 12 }}>{o.qty}x {o.name}</span>
+                    {o.committed && <span style={{ color: C.greenLight, fontSize: 9, marginLeft: 6, fontWeight: 700 }}>SENT</span>}
                     {o.sides && <div style={{ color: C.gray300, fontSize: 11 }}>↳ {o.sides.map(s => s.name).join(", ")}</div>}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span style={{ color: C.gold, fontSize: 12, fontWeight: 700 }}>{fmt(o.price * o.qty)}</span>
-                    <button onClick={() => removeLine(o.orderKey)} style={{ background: "none", border: "none", color: C.redLight, fontWeight: 900, fontSize: 16, cursor: "pointer", padding: 0 }}>x</button>
+                    {!o.committed && <button onClick={() => removeLine(o.orderKey)} style={{ background: "none", border: "none", color: C.redLight, fontWeight: 900, fontSize: 16, cursor: "pointer", padding: 0 }}>x</button>}
                   </div>
                 </div>
               ))}
@@ -539,7 +547,7 @@ const OrderPanel = ({ activeTable, setActiveTable, tables, setTables, menu, side
   );
 };
 
-const WaiterView = ({ tables, setTables, menu, sides, user, addNotification }) => {
+const WaiterView = ({ tables, setTables, menu, sides, setMenu, setSides, user, addNotification }) => {
   const [view, setView] = useState("tables");
   const [activeTable, setActiveTable] = useState(null);
   const [openingTable, setOpeningTable] = useState(null);
@@ -577,7 +585,7 @@ const WaiterView = ({ tables, setTables, menu, sides, user, addNotification }) =
     return (
       <OrderPanel
         activeTable={activeTable} setActiveTable={setActiveTable}
-        tables={tables} setTables={setTables} menu={menu} sides={sides}
+        tables={tables} setTables={setTables} menu={menu} sides={sides} setMenu={setMenu} setSides={setSides}
         userId={user.id} addNotification={addNotification}
         onBack={() => setView("tables")} showBillButton={true}
       />
@@ -680,8 +688,6 @@ const KitchenView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
   const markReady = (tableId) => {
     const table = tables.find(t => t.id === tableId);
     const foodItems = table.order.filter(o => !isDrink(o));
-    setMenu(prev => prev.map(m => { const o = foodItems.find(x => x.id === m.id); return o ? { ...m, stock: Math.max(0, m.stock - o.qty) } : m; }));
-    setSides(prev => prev.map(s => { const used = foodItems.flatMap(o => o.sides || []).filter(x => x.id === s.id).length; return { ...s, stock: Math.max(0, s.stock - used) }; }));
     const hasDrinks = table.order.some(o => isDrink(o));
     const barDone = !hasDrinks || !!table.barReadyAt;
     setTables(prev => prev.map(t => t.id === tableId ? { ...t, kitchenReadyAt: nowTime(), status: barDone ? "bill" : t.status } : t));
@@ -842,8 +848,6 @@ const LineChefView = ({ tables, setTables, menu, setMenu, sides, setSides, user,
   const markReady = (tableId) => {
     const table = tables.find(t => t.id === tableId);
     const foodItems = table.order.filter(o => !isDrink(o));
-    setMenu(prev => prev.map(m => { const o = foodItems.find(x => x.id === m.id); return o ? { ...m, stock: Math.max(0, m.stock - o.qty) } : m; }));
-    setSides(prev => prev.map(s => { const used = foodItems.flatMap(o => o.sides || []).filter(x => x.id === s.id).length; return { ...s, stock: Math.max(0, s.stock - used) }; }));
     const hasDrinks = table.order.some(o => isDrink(o));
     const barDone = !hasDrinks || !!table.barReadyAt;
     setTables(prev => prev.map(t => t.id === tableId ? { ...t, kitchenReadyAt: nowTime(), status: barDone ? "bill" : t.status } : t));
@@ -897,7 +901,6 @@ const BarView = ({ tables, setTables, menu, setMenu, sides, setSides, user, addN
   const markReady = (tableId) => {
     const table = tables.find(t => t.id === tableId);
     const drinkItems = table.order.filter(o => isDrink(o));
-    setMenu(prev => prev.map(m => { const o = drinkItems.find(x => x.id === m.id); return o ? { ...m, stock: Math.max(0, m.stock - o.qty) } : m; }));
     const hasFood = table.order.some(o => !isDrink(o));
     const kitchenDone = !hasFood || !!table.kitchenReadyAt;
     setTables(prev => prev.map(t => t.id === tableId ? { ...t, barReadyAt: nowTime(), status: kitchenDone ? "bill" : t.status } : t));
@@ -1256,11 +1259,12 @@ const SideModal = ({ side, onSave, onDelete, onCancel }) => {
   );
 };
 
-const FloorPlan = ({ tables, setTables, canReserve, addNotification }) => {
+const FloorPlan = ({ tables, setTables, canReserve, addNotification, menu, sides, setMenu, setSides, user }) => {
   const [selected, setSelected] = useState(null);
   const [reserveModal, setReserveModal] = useState(null);
   const [showTakeaway, setShowTakeaway] = useState(false);
   const [rName, setRName] = useState(""); const [rTime, setRTime] = useState(""); const [rGuests, setRGuests] = useState("2");
+  const [orderingTable, setOrderingTable] = useState(null);
 
   const diningTables = tables.filter(t => !t.isTakeaway);
   const takeawayOrders = tables.filter(t => t.isTakeaway && t.status !== "free");
@@ -1268,6 +1272,18 @@ const FloorPlan = ({ tables, setTables, canReserve, addNotification }) => {
   const statusColor = (t) => ({ free: C.green, reserved: C.blue, bill: C.orange, occupied: C.purpleLight }[t.status] || C.purpleLight);
   const statusLabel = (t) => ({ free: "Free", reserved: "Reserved", bill: "Bill", occupied: "Active" }[t.status] || t.status);
   const selTable = selected ? tables.find(t => t.id === selected) : null;
+
+  if (orderingTable) {
+    const liveTable = tables.find(t => t.id === orderingTable.id) || orderingTable;
+    return (
+      <OrderPanel
+        activeTable={liveTable} setActiveTable={setOrderingTable}
+        tables={tables} setTables={setTables} menu={menu || []} sides={sides || []} setMenu={setMenu} setSides={setSides}
+        userId={user?.id} addNotification={addNotification}
+        onBack={() => setOrderingTable(null)} showBillButton={true}
+      />
+    );
+  }
 
   const doReserve = () => {
     if (!rName || !rTime) return;
@@ -1285,13 +1301,13 @@ const FloorPlan = ({ tables, setTables, canReserve, addNotification }) => {
     const newId = 100 + takeawayCount + 1;
     const tkNumber = `TK${takeawayCount + 1}`;
     const newOrder = {
-      id: newId, status: "occupied", guests: 1, waiterId: null,
+      id: newId, status: "occupied", guests: 1, waiterId: user?.id || null,
       order: [], orderSentAt: null, openedAt: nowTime(), openedTs: Date.now(), reservation: null,
       isTakeaway: true, takeawayNumber: tkNumber, customerName,
     };
     setTables(prev => [...prev, newOrder]);
     setShowTakeaway(false);
-    addNotification && addNotification(`Takeaway order ${tkNumber} created`);
+    setOrderingTable(newOrder);
   };
 
   const TableBtn = ({ id, w = 80 }) => {
@@ -1338,7 +1354,7 @@ const FloorPlan = ({ tables, setTables, canReserve, addNotification }) => {
           <h3 style={{ color: C.teal, margin: "0 0 10px", fontSize: 13 }}>🥡 ACTIVE TAKEAWAYS</h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {takeawayOrders.map(t => (
-              <div key={t.id} style={{ background: C.teal, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <button key={t.id} onClick={() => setOrderingTable(t)} style={{ width: "100%", textAlign: "left", background: C.teal, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", border: "none", cursor: "pointer" }}>
                 <div>
                   <div style={{ color: C.gold, fontWeight: 800 }}>{t.takeawayNumber}</div>
                   <div style={{ color: C.white, fontSize: 11 }}>{t.customerName} · {t.openedAt}</div>
@@ -1347,7 +1363,7 @@ const FloorPlan = ({ tables, setTables, canReserve, addNotification }) => {
                   <div style={{ color: C.gold, fontWeight: 700 }}>{fmt(orderTotal(t.order))}</div>
                   <div style={{ color: C.white, fontSize: 11 }}>{t.status === "bill" ? "⏳ Bill" : `${t.order.length} items`}</div>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -1422,12 +1438,12 @@ const FloorPlan = ({ tables, setTables, canReserve, addNotification }) => {
   );
 };
 
-const ReceptionistView = ({ tables, setTables, user, addNotification }) => (
+const ReceptionistView = ({ tables, setTables, menu, sides, setMenu, setSides, user, addNotification }) => (
   <div style={{ minHeight: "100vh", background: C.purpleDark }}>
     <TopBar user={user} />
     <div style={{ padding: 16 }}>
       <h2 style={{ color: C.gold, margin: "0 0 14px", fontSize: 15, letterSpacing: 1 }}>🛎️ FLOOR PLAN</h2>
-      <FloorPlan tables={tables} setTables={setTables} canReserve={true} addNotification={addNotification} />
+      <FloorPlan tables={tables} setTables={setTables} canReserve={true} addNotification={addNotification} menu={menu} sides={sides} setMenu={setMenu} setSides={setSides} user={user} />
     </div>
   </div>
 );
@@ -1593,7 +1609,7 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
     return (
       <OrderPanel
         activeTable={activeTable} setActiveTable={setActiveTable}
-        tables={tables} setTables={setTables} menu={menu} sides={sides}
+        tables={tables} setTables={setTables} menu={menu} sides={sides} setMenu={setMenu} setSides={setSides}
         userId={user.id} addNotification={addNotification}
         onBack={() => { setShowOrder(false); setActiveTable(null); setTab("tables"); }}
         showBillButton={true}
@@ -1620,7 +1636,7 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
         ))}
       </div>
       <div style={{ padding: 16 }}>
-        {tab === "floor" && <FloorPlan tables={tables} setTables={setTables} canReserve={true} addNotification={addNotification} />}
+        {tab === "floor" && <FloorPlan tables={tables} setTables={setTables} canReserve={true} addNotification={addNotification} menu={menu} sides={sides} setMenu={setMenu} setSides={setSides} user={user} />}
         {tab === "tables" && (
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
@@ -2069,4 +2085,4 @@ export default function App() {
       <button onClick={handleClockOut} style={{ position: "fixed", bottom: 16, right: 16, zIndex: 500, background: C.purple, border: `2px solid ${C.gold}`, borderRadius: 50, color: C.gold, fontWeight: 700, fontSize: 11, cursor: "pointer", padding: "7px 13px", boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}>Clock Out</button>
     </div>
   );
-  }
+}
