@@ -419,6 +419,8 @@ const TakeawayModal = ({ onConfirm, onCancel, existingCount }) => {
 
 const OrderPanel = ({ activeTable, setActiveTable, tables, setTables, menu, sides, setMenu, setSides, userId, addNotification, onBack, showBillButton = true }) => {
   const [selectedCat, setSelectedCat] = useState("Starters");
+  const [openGroup, setOpenGroup] = useState(null);
+  const changeCat = (cat) => { setSelectedCat(cat); setOpenGroup(null); };
   const [sidesPicker, setSidesPicker] = useState(null);
 
   const syncActive = (tableId, updater) => {
@@ -478,7 +480,7 @@ const OrderPanel = ({ activeTable, setActiveTable, tables, setTables, menu, side
       <div style={{ display: "flex", flex: 1, overflow: "hidden", height: "calc(100vh - 58px - 180px)" }}>
         <div style={{ width: 88, background: "#2a1020", borderRight: `2px solid ${C.purpleLight}`, display: "flex", flexDirection: "column", overflowY: "auto", flexShrink: 0 }}>
           {CATEGORIES.map(cat => (
-            <button key={cat} onClick={() => setSelectedCat(cat)} style={{ width: "100%", padding: "16px 4px", background: selectedCat === cat ? C.purple : "transparent", color: selectedCat === cat ? C.gold : C.goldPale, border: "none", borderLeft: `3px solid ${selectedCat === cat ? C.gold : "transparent"}`, fontWeight: 700, fontSize: 11, cursor: "pointer", textAlign: "center", lineHeight: 1.3 }}>
+            <button key={cat} onClick={() => changeCat(cat)} style={{ width: "100%", padding: "16px 4px", background: selectedCat === cat ? C.purple : "transparent", color: selectedCat === cat ? C.gold : C.goldPale, border: "none", borderLeft: `3px solid ${selectedCat === cat ? C.gold : "transparent"}`, fontWeight: 700, fontSize: 11, cursor: "pointer", textAlign: "center", lineHeight: 1.3 }}>
               {cat}
             </button>
           ))}
@@ -487,42 +489,69 @@ const OrderPanel = ({ activeTable, setActiveTable, tables, setTables, menu, side
         <div style={{ flex: 1, overflowY: "auto", padding: 10, display: "flex", flexDirection: "column", gap: 8 }}>
           {(() => {
             const groups = {};
+            const ungrouped = [];
             filteredMenu.forEach(item => {
-              const key = item.subCategory && item.subCategory.trim() ? item.subCategory.trim() : "";
-              if (!groups[key]) groups[key] = [];
-              groups[key].push(item);
+              const key = item.subCategory && item.subCategory.trim() ? item.subCategory.trim() : null;
+              if (key) { if (!groups[key]) groups[key] = []; groups[key].push(item); }
+              else ungrouped.push(item);
             });
-            const groupKeys = Object.keys(groups).sort((a, b) => a === "" ? 1 : b === "" ? -1 : a.localeCompare(b));
-            return groupKeys.map(key => (
-              <div key={key || "_none"}>
-                {key && <div style={{ color: C.goldLight, fontWeight: 800, fontSize: 12, letterSpacing: 1, textTransform: "uppercase", margin: "10px 0 6px" }}>{key}</div>}
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {groups[key].map(item => {
-                    const qty = activeTable.order.filter(o => o.id === item.id).reduce((s, o) => s + o.qty, 0);
-                    const out = item.stock === 0;
-                    return (
-                      <div key={item.id} style={{ background: out ? "#1a0a18" : C.purple, borderRadius: 10, padding: "12px 14px", border: `1px solid ${qty > 0 ? C.gold : out ? C.red : C.purpleLight}`, display: "flex", alignItems: "center", gap: 10 }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ color: out ? C.gray500 : C.goldPale, fontWeight: 700, fontSize: 13 }}>{item.name}</div>
-                          <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 3, flexWrap: "wrap" }}>
-                            <span style={{ color: C.gold, fontWeight: 800, fontSize: 14 }}>{fmt(item.price)}</span>
-                            {item.hasSides && !out && <span style={{ fontSize: 10, color: C.goldPale, background: C.purpleLight, padding: "1px 6px", borderRadius: 8 }}>+{item.sidesRequired} sides</span>}
-                            {out && <span style={{ fontSize: 10, color: C.white, background: C.red, padding: "2px 7px", borderRadius: 8, fontWeight: 700 }}>OUT OF STOCK</span>}
-                            {!out && item.stock <= 3 && <span style={{ fontSize: 10, color: C.white, background: C.orange, padding: "2px 7px", borderRadius: 8, fontWeight: 700 }}>{item.stock} left</span>}
-                          </div>
-                        </div>
-                        {!out && (
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            {qty > 0 && <span style={{ color: C.gold, fontWeight: 800 }}>{qty}</span>}
-                            <button onClick={() => addItem(item)} style={{ width: 34, height: 34, borderRadius: "50%", border: "none", background: C.gold, color: C.purple, fontWeight: 900, fontSize: 20, cursor: "pointer" }}>+</button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+            const groupKeys = Object.keys(groups).sort((a, b) => a.localeCompare(b));
+
+            const renderItemCard = (item) => {
+              const qty = activeTable.order.filter(o => o.id === item.id).reduce((s, o) => s + o.qty, 0);
+              const out = item.stock === 0;
+              return (
+                <div key={item.id} style={{ background: out ? "#1a0a18" : C.purple, borderRadius: 10, padding: "12px 14px", border: `1px solid ${qty > 0 ? C.gold : out ? C.red : C.purpleLight}`, display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ color: out ? C.gray500 : C.goldPale, fontWeight: 700, fontSize: 13 }}>{item.name}</div>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 3, flexWrap: "wrap" }}>
+                      <span style={{ color: C.gold, fontWeight: 800, fontSize: 14 }}>{fmt(item.price)}</span>
+                      {item.hasSides && !out && <span style={{ fontSize: 10, color: C.goldPale, background: C.purpleLight, padding: "1px 6px", borderRadius: 8 }}>+{item.sidesRequired} sides</span>}
+                      {out && <span style={{ fontSize: 10, color: C.white, background: C.red, padding: "2px 7px", borderRadius: 8, fontWeight: 700 }}>OUT OF STOCK</span>}
+                      {!out && item.stock <= 3 && <span style={{ fontSize: 10, color: C.white, background: C.orange, padding: "2px 7px", borderRadius: 8, fontWeight: 700 }}>{item.stock} left</span>}
+                    </div>
+                  </div>
+                  {!out && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      {qty > 0 && <span style={{ color: C.gold, fontWeight: 800 }}>{qty}</span>}
+                      <button onClick={() => addItem(item)} style={{ width: 34, height: 34, borderRadius: "50%", border: "none", background: C.gold, color: C.purple, fontWeight: 900, fontSize: 20, cursor: "pointer" }}>+</button>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ));
+              );
+            };
+
+            if (groupKeys.length === 0) {
+              return filteredMenu.map(renderItemCard);
+            }
+
+            return (
+              <>
+                {openGroup && groups[openGroup] ? (
+                  <>
+                    <button onClick={() => setOpenGroup(null)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", color: C.gold, fontWeight: 700, fontSize: 13, cursor: "pointer", padding: "4px 0 8px" }}>← {openGroup}</button>
+                    {groups[openGroup].map(renderItemCard)}
+                  </>
+                ) : (
+                  <>
+                    {groupKeys.map(key => {
+                      const items = groups[key];
+                      const anyAvailable = items.some(it => it.stock > 0);
+                      return (
+                        <button key={key} onClick={() => setOpenGroup(key)} style={{ width: "100%", textAlign: "left", background: C.purple, borderRadius: 10, padding: "14px", border: `1px solid ${C.purpleLight}`, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
+                          <div>
+                            <div style={{ color: C.gold, fontWeight: 800, fontSize: 14 }}>{key}</div>
+                            <div style={{ color: C.gray500, fontSize: 11, marginTop: 2 }}>{items.length} option{items.length !== 1 ? "s" : ""}{!anyAvailable ? " · all out of stock" : ""}</div>
+                          </div>
+                          <span style={{ color: C.goldPale, fontSize: 18 }}>→</span>
+                        </button>
+                      );
+                    })}
+                    {ungrouped.map(renderItemCard)}
+                  </>
+                )}
+              </>
+            );
           })()}
         </div>
       </div>
