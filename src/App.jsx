@@ -25,8 +25,8 @@ const rowToTable = (r) => ({
   kitchenReadyAt: r.kitchen_ready_at || null, barReadyAt: r.bar_ready_at || null,
   orderSentTs: r.order_sent_ts || null,
 });
-const menuToRow = (m) => ({ id: m.id, name: m.name, category: m.category, price: m.price, stock: m.stock, has_sides: m.hasSides, sides_required: m.sidesRequired });
-const rowToMenu = (r) => ({ id: r.id, name: r.name, category: r.category, price: r.price, stock: r.stock, hasSides: r.has_sides, sidesRequired: r.sides_required });
+const menuToRow = (m) => ({ id: m.id, name: m.name, category: m.category, sub_category: m.subCategory || null, price: m.price, stock: m.stock, has_sides: m.hasSides, sides_required: m.sidesRequired });
+const rowToMenu = (r) => ({ id: r.id, name: r.name, category: r.category, subCategory: r.sub_category || "", price: r.price, stock: r.stock, hasSides: r.has_sides, sidesRequired: r.sides_required });
 const sideToRow = (s) => ({ id: s.id, name: s.name, stock: s.stock });
 const rowToSide = (r) => ({ id: r.id, name: r.name, stock: r.stock });
 
@@ -485,29 +485,45 @@ const OrderPanel = ({ activeTable, setActiveTable, tables, setTables, menu, side
         </div>
 
         <div style={{ flex: 1, overflowY: "auto", padding: 10, display: "flex", flexDirection: "column", gap: 8 }}>
-          {filteredMenu.map(item => {
-            const qty = activeTable.order.filter(o => o.id === item.id).reduce((s, o) => s + o.qty, 0);
-            const out = item.stock === 0;
-            return (
-              <div key={item.id} style={{ background: out ? "#1a0a18" : C.purple, borderRadius: 10, padding: "12px 14px", border: `1px solid ${qty > 0 ? C.gold : out ? C.red : C.purpleLight}`, display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ color: out ? C.gray500 : C.goldPale, fontWeight: 700, fontSize: 13 }}>{item.name}</div>
-                  <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 3, flexWrap: "wrap" }}>
-                    <span style={{ color: C.gold, fontWeight: 800, fontSize: 14 }}>{fmt(item.price)}</span>
-                    {item.hasSides && !out && <span style={{ fontSize: 10, color: C.goldPale, background: C.purpleLight, padding: "1px 6px", borderRadius: 8 }}>+{item.sidesRequired} sides</span>}
-                    {out && <span style={{ fontSize: 10, color: C.white, background: C.red, padding: "2px 7px", borderRadius: 8, fontWeight: 700 }}>OUT OF STOCK</span>}
-                    {!out && item.stock <= 3 && <span style={{ fontSize: 10, color: C.white, background: C.orange, padding: "2px 7px", borderRadius: 8, fontWeight: 700 }}>{item.stock} left</span>}
-                  </div>
+          {(() => {
+            const groups = {};
+            filteredMenu.forEach(item => {
+              const key = item.subCategory && item.subCategory.trim() ? item.subCategory.trim() : "";
+              if (!groups[key]) groups[key] = [];
+              groups[key].push(item);
+            });
+            const groupKeys = Object.keys(groups).sort((a, b) => a === "" ? 1 : b === "" ? -1 : a.localeCompare(b));
+            return groupKeys.map(key => (
+              <div key={key || "_none"}>
+                {key && <div style={{ color: C.goldLight, fontWeight: 800, fontSize: 12, letterSpacing: 1, textTransform: "uppercase", margin: "10px 0 6px" }}>{key}</div>}
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {groups[key].map(item => {
+                    const qty = activeTable.order.filter(o => o.id === item.id).reduce((s, o) => s + o.qty, 0);
+                    const out = item.stock === 0;
+                    return (
+                      <div key={item.id} style={{ background: out ? "#1a0a18" : C.purple, borderRadius: 10, padding: "12px 14px", border: `1px solid ${qty > 0 ? C.gold : out ? C.red : C.purpleLight}`, display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ color: out ? C.gray500 : C.goldPale, fontWeight: 700, fontSize: 13 }}>{item.name}</div>
+                          <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 3, flexWrap: "wrap" }}>
+                            <span style={{ color: C.gold, fontWeight: 800, fontSize: 14 }}>{fmt(item.price)}</span>
+                            {item.hasSides && !out && <span style={{ fontSize: 10, color: C.goldPale, background: C.purpleLight, padding: "1px 6px", borderRadius: 8 }}>+{item.sidesRequired} sides</span>}
+                            {out && <span style={{ fontSize: 10, color: C.white, background: C.red, padding: "2px 7px", borderRadius: 8, fontWeight: 700 }}>OUT OF STOCK</span>}
+                            {!out && item.stock <= 3 && <span style={{ fontSize: 10, color: C.white, background: C.orange, padding: "2px 7px", borderRadius: 8, fontWeight: 700 }}>{item.stock} left</span>}
+                          </div>
+                        </div>
+                        {!out && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            {qty > 0 && <span style={{ color: C.gold, fontWeight: 800 }}>{qty}</span>}
+                            <button onClick={() => addItem(item)} style={{ width: 34, height: 34, borderRadius: "50%", border: "none", background: C.gold, color: C.purple, fontWeight: 900, fontSize: 20, cursor: "pointer" }}>+</button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-                {!out && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    {qty > 0 && <span style={{ color: C.gold, fontWeight: 800 }}>{qty}</span>}
-                    <button onClick={() => addItem(item)} style={{ width: 34, height: 34, borderRadius: "50%", border: "none", background: C.gold, color: C.purple, fontWeight: 900, fontSize: 20, cursor: "pointer" }}>+</button>
-                  </div>
-                )}
               </div>
-            );
-          })}
+            ));
+          })()}
         </div>
       </div>
 
@@ -1175,6 +1191,7 @@ const MenuItemModal = ({ item, onSave, onDelete, onCancel }) => {
   const isNew = !item;
   const [name, setName] = useState(item?.name || "");
   const [category, setCategory] = useState(item?.category || CATEGORIES[0]);
+  const [subCategory, setSubCategory] = useState(item?.subCategory || "");
   const [price, setPrice] = useState(item ? String(item.price) : "");
   const [stock, setStock] = useState(item ? String(item.stock) : "0");
   const [hasSides, setHasSides] = useState(item?.hasSides || false);
@@ -1185,7 +1202,7 @@ const MenuItemModal = ({ item, onSave, onDelete, onCancel }) => {
   const save = () => {
     onSave({
       id: item ? item.id : null,
-      name: name.trim(), category, price: Number(price),
+      name: name.trim(), category, subCategory: subCategory.trim(), price: Number(price),
       stock: Number(stock) || 0, hasSides,
       sidesRequired: hasSides ? Math.max(1, Number(sidesRequired) || 1) : 0,
     });
@@ -1203,6 +1220,8 @@ const MenuItemModal = ({ item, onSave, onDelete, onCancel }) => {
             <button key={c} onClick={() => setCategory(c)} style={{ padding: "8px 2px", borderRadius: 8, border: `2px solid ${category === c ? C.gold : C.purpleLight}`, background: category === c ? C.gold : "transparent", color: category === c ? C.purple : C.goldPale, fontWeight: 700, fontSize: 10, cursor: "pointer" }}>{c}</button>
           ))}
         </div>
+        <div style={{ color: C.goldPale, fontSize: 12, marginBottom: 6 }}>Group (optional — e.g. "Wine", "Burgers", "Pizza")</div>
+        <input value={subCategory} onChange={e => setSubCategory(e.target.value)} placeholder="e.g. Wine, Burgers, Pizza" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.purpleLight}`, background: C.purpleDark, color: C.goldPale, fontSize: 14, marginBottom: 14, boxSizing: "border-box" }} />
         <div style={{ color: C.goldPale, fontSize: 12, marginBottom: 6 }}>Price ($)</div>
         <input value={price} onChange={e => setPrice(e.target.value)} placeholder="0.00" inputMode="decimal" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.purpleLight}`, background: C.purpleDark, color: C.goldPale, fontSize: 14, marginBottom: 14, boxSizing: "border-box" }} />
         {isNew && (
@@ -1744,7 +1763,7 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
               <button key={item.id} onClick={() => setEditingItem(item)} style={{ width: "100%", textAlign: "left", background: C.purple, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, border: `1px solid ${C.purpleLight}`, cursor: "pointer" }}>
                 <div>
                   <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{item.name}</div>
-                  <div style={{ color: C.gray500, fontSize: 11 }}>{item.category} · {fmt(item.price)}{item.hasSides ? ` · +${item.sidesRequired} sides` : ""}</div>
+                  <div style={{ color: C.gray500, fontSize: 11 }}>{item.category}{item.subCategory ? ` · ${item.subCategory}` : ""} · {fmt(item.price)}{item.hasSides ? ` · +${item.sidesRequired} sides` : ""}</div>
                 </div>
                 <span style={{ color: C.gold, fontSize: 16 }}>✎</span>
               </button>
@@ -2085,4 +2104,4 @@ export default function App() {
       <button onClick={handleClockOut} style={{ position: "fixed", bottom: 16, right: 16, zIndex: 500, background: C.purple, border: `2px solid ${C.gold}`, borderRadius: 50, color: C.gold, fontWeight: 700, fontSize: 11, cursor: "pointer", padding: "7px 13px", boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}>Clock Out</button>
     </div>
   );
-}
+  }
