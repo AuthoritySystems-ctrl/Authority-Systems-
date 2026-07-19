@@ -642,17 +642,36 @@ const KitchenView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
   const [, setTick] = useState(0);
   useEffect(() => { const iv = setInterval(() => setTick(x => x + 1), 15000); return () => clearInterval(iv); }, []);
   const [compact, setCompact] = useState(false);
-  const [stockFeed, setStockFeed] = useState([]);
+  const [requestsCompact, setRequestsCompact] = useState(false);
+  const [stockRequests, setStockRequests] = useState([]);
 
   useEffect(() => {
-    const loadFeed = async () => {
-      const { data } = await supabase.from("shift_events").select("*").eq("role", "stock").eq("event_type", "stock_update").order("created_at", { ascending: false }).limit(15);
-      setStockFeed(data || []);
+    const loadRequests = async () => {
+      const { data } = await supabase.from("stock_requests").select("*").eq("status", "pending").order("created_at", { ascending: true });
+      setStockRequests(data || []);
     };
-    loadFeed();
-    const iv = setInterval(loadFeed, 15000);
+    loadRequests();
+    const iv = setInterval(loadRequests, 10000);
     return () => clearInterval(iv);
   }, []);
+
+  const applyStockRequest = async (req) => {
+    setMenu(prev => prev.map(m => { const it = (req.items || []).find(x => x.kind === "menu" && x.id === m.id); return it ? { ...m, stock: it.stock } : m; }));
+    setSides(prev => prev.map(s => { const it = (req.items || []).find(x => x.kind === "sides" && x.id === s.id); return it ? { ...s, stock: it.stock } : s; }));
+    await supabase.from("stock_requests").update({ status: "applied", applied_at: new Date().toISOString() }).eq("id", req.id);
+    for (const it of (req.items || [])) {
+      await supabase.from("shift_events").insert({
+        staff_id: user.id, staff_name: user.name, role: "kitchen",
+        event_type: "kitchen_stock_update", details: { name: it.name, stock: it.stock },
+      });
+    }
+    await supabase.from("notifications").insert({
+      message: `${user.name} updated kitchen stock: ${(req.items || []).map(it => `${it.name} (${it.stock})`).join(", ")}`,
+      target_roles: "line_chef", sender_name: user.name, sender_role: user.role,
+    });
+    addNotification(`Applied ${req.staff_name}'s stock update`);
+    setStockRequests(prev => prev.filter(r => r.id !== req.id));
+  };
 
   const isDrink = (o) => { const m = menu.find(x => x.id === o.id); return m && m.category === "Drinks"; };
   const pending = tables.filter(t => t.status === "occupied" && t.orderSentAt && !t.kitchenReadyAt && t.order.some(o => !isDrink(o)))
@@ -745,14 +764,41 @@ const KitchenView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
           </div>
         )}
 
-        <h2 style={{ color: C.gold, margin: "0 0 12px", fontSize: 15 }}>📥 STOCK UPDATES FROM TEAM</h2>
-        {stockFeed.length === 0 ? (
-          <div style={{ color: C.gray500, fontSize: 12, marginBottom: 20 }}>No stock updates yet</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <h2 style={{ color: C.gold, margin: 0, fontSize: 15 }}>📥 STOCK REQUESTS ({stockRequests.length})</h2>
+          {stockRequests.length > 0 && (
+            <button onClick={() => setRequestsCompact(v => !v)} style={{ background: requestsCompact ? C.gold : C.purple, color: requestsCompact ? C.purple : C.goldPale, border: `1px solid ${C.purpleLight}`, borderRadius: 8, padding: "6px 12px", fontWeight: 700, fontSize: 11, cursor: "pointer" }}>{requestsCompact ? "Full View" : "Compact View"}</button>
+          )}
+        </div>
+        {stockRequests.length === 0 ? (
+          <div style={{ color: C.gray500, fontSize: 12, marginBottom: 20 }}>No pending stock requests</div>
+        ) : requestsCompact ? (
+          <div style={{ marginBottom: 20 }}>
+            {stockRequests.map(req => (
+              <button key={req.id} onClick={() => applyStockRequest(req)} style={{ width: "100%", textAlign: "left", background: C.purple, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, border: `2px solid ${C.orange}`, cursor: "pointer" }}>
+                <div>
+                  <div style={{ color: C.gold, fontWeight: 800, fontSize: 13 }}>{req.staff_name}</div>
+                  <div style={{ color: C.gray500, fontSize: 11 }}>{(req.items || []).length} item{(req.items || []).length !== 1 ? "s" : ""} · {new Date(req.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                </div>
+                <span style={{ color: C.greenLight, fontSize: 12, fontWeight: 700 }}>Tap to apply →</span>
+              </button>
+            ))}
+          </div>
         ) : (
           <div style={{ marginBottom: 20 }}>
-            {stockFeed.map(e => (
-              <div key={e.id} style={{ background: C.purple, borderRadius: 8, padding: "8px 12px", marginBottom: 6, color: C.goldPale, fontSize: 12 }}>
-                <span style={{ color: C.gray500 }}>{new Date(e.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} — </span>{e.details?.message}
+            {stockRequests.map(req => (
+              <div key={req.id} style={{ background: C.purple, borderRadius: 12, padding: 16, border: `2px solid ${C.orange}`, marginBottom: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+                  <div style={{ color: C.gold, fontWeight: 800, fontSize: 15 }}>{req.staff_name}</div>
+                  <div style={{ color: C.goldPale, fontSize: 12 }}>{new Date(req.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                </div>
+                {(req.items || []).map((it, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                    <span style={{ color: C.goldPale, fontSize: 13 }}>{it.name} <span style={{ color: C.gray500, fontSize: 10 }}>({it.category})</span></span>
+                    <span style={{ color: C.gold, fontWeight: 700, fontSize: 13 }}>{it.stock}</span>
+                  </div>
+                ))}
+                <Btn onClick={() => applyStockRequest(req)} color={C.greenLight} textColor={C.white} style={{ marginTop: 10, width: "100%" }}>✓ Mark Updated</Btn>
               </div>
             ))}
           </div>
@@ -1045,47 +1091,45 @@ const CashierView = ({ tables, setTables, user }) => {
   );
 };
 
-const StockView = ({ menu, setMenu, sides, setSides, user, addNotification }) => {
-  const initialMenuRef = useState(() => menu.map(m => ({ id: m.id, stock: m.stock })))[0];
-  const initialSidesRef = useState(() => sides.map(s => ({ id: s.id, stock: s.stock })))[0];
+const StockView = ({ menu, sides, user, addNotification }) => {
+  const [draftMenu, setDraftMenu] = useState(() => menu.map(m => ({ id: m.id, name: m.name, category: m.category, stock: m.stock })));
+  const [draftSides, setDraftSides] = useState(() => sides.map(s => ({ id: s.id, name: s.name, stock: s.stock })));
   const [sending, setSending] = useState(false);
 
+  const adjustDraft = (kind, id, delta) => {
+    const setter = kind === "menu" ? setDraftMenu : setDraftSides;
+    setter(prev => prev.map(x => x.id === id ? { ...x, stock: Math.max(0, x.stock + delta) } : x));
+  };
+
   const sendUpdate = async () => {
-    const changedMenu = menu.filter(m => {
-      const orig = initialMenuRef.find(o => o.id === m.id);
-      return orig && orig.stock !== m.stock;
-    });
-    const changedSides = sides.filter(s => {
-      const orig = initialSidesRef.find(o => o.id === s.id);
-      return orig && orig.stock !== s.stock;
-    });
+    const changedMenu = draftMenu.filter(m => { const orig = menu.find(o => o.id === m.id); return orig && orig.stock !== m.stock; });
+    const changedSides = draftSides.filter(s => { const orig = sides.find(o => o.id === s.id); return orig && orig.stock !== s.stock; });
     if (!changedMenu.length && !changedSides.length) {
       addNotification("No stock changes to send yet");
       return;
     }
-    const parts = [...changedMenu.map(m => `${m.name} (${m.stock})`), ...changedSides.map(s => `${s.name} (${s.stock})`)];
-    const message = `${user.name} updated stock: ${parts.join(", ")}`;
-    const structuredItems = [
-      ...changedMenu.map(m => ({ name: m.name, stock: m.stock, category: m.category === "Drinks" ? "Drinks" : "Food" })),
-      ...changedSides.map(s => ({ name: s.name, stock: s.stock, category: "Food" })),
+    const items = [
+      ...changedMenu.map(m => ({ id: m.id, kind: "menu", name: m.name, stock: m.stock, category: m.category === "Drinks" ? "Drinks" : "Food" })),
+      ...changedSides.map(s => ({ id: s.id, kind: "sides", name: s.name, stock: s.stock, category: "Food" })),
     ];
+    const message = `${user.name} requested stock update: ${items.map(it => `${it.name} (${it.stock})`).join(", ")}`;
     setSending(true);
-    const { error } = await supabase.from("notifications").insert({ message, target_roles: "manager,kitchen", sender_name: user.name, sender_role: user.role });
+    const { error } = await supabase.from("stock_requests").insert({ staff_id: user.id, staff_name: user.name, items, status: "pending" });
     if (!error) {
+      await supabase.from("notifications").insert({ message, target_roles: "manager", sender_name: user.name, sender_role: user.role });
       const { data } = await supabase.from("shifts").select("id, stock_updates").eq("staff_id", user.id).is("clock_out", null).limit(1);
       if (data && data.length) {
         await supabase.from("shifts").update({ stock_updates: (data[0].stock_updates || 0) + 1 }).eq("id", data[0].id);
       }
       await supabase.from("shift_events").insert({
         staff_id: user.id, staff_name: user.name, role: "stock",
-        event_type: "stock_update", details: { message, items: structuredItems },
+        event_type: "stock_update", details: { message, items },
       });
+      addNotification("Sent to Head Chef for approval");
+    } else {
+      addNotification("Failed to send update");
     }
     setSending(false);
-    if (error) { addNotification("Failed to send update"); return; }
-    changedMenu.forEach(m => { const o = initialMenuRef.find(x => x.id === m.id); if (o) o.stock = m.stock; });
-    changedSides.forEach(s => { const o = initialSidesRef.find(x => x.id === s.id); if (o) o.stock = s.stock; });
-    addNotification("Update sent to Manager & Chef");
   };
 
   return (
@@ -1093,32 +1137,32 @@ const StockView = ({ menu, setMenu, sides, setSides, user, addNotification }) =>
       <TopBar user={user} />
       <div style={{ padding: 16, paddingBottom: 90 }}>
         <h2 style={{ color: C.gold, margin: "0 0 4px", fontSize: 15 }}>📦 STOCK MANAGEMENT</h2>
-        <p style={{ color: C.goldPale, fontSize: 12, marginBottom: 16 }}>Update counts after a delivery, then send the update</p>
+        <p style={{ color: C.goldPale, fontSize: 12, marginBottom: 16 }}>Adjust counts, then send — nothing changes live until the Head Chef approves</p>
         <div style={{ color: C.goldPale, fontSize: 12, marginBottom: 8, fontWeight: 700 }}>Menu Items</div>
-        {menu.map(item => (
+        {draftMenu.map(item => (
           <div key={item.id} style={{ background: C.purple, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, border: `1px solid ${item.stock === 0 ? C.red : item.stock <= 3 ? C.orange : C.purpleLight}` }}>
             <div><div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{item.name}</div><div style={{ color: stockColor(item.stock), fontSize: 11 }}>{item.stock === 0 ? "OUT" : item.stock <= 3 ? `⚠ ${item.stock} left` : `${item.stock} avail`}</div></div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <button onClick={() => setMenu(p => p.map(m => m.id === item.id ? { ...m, stock: Math.max(0, m.stock - 1) } : m))} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.purpleLight, color: C.gold, fontWeight: 900, cursor: "pointer" }}>-</button>
+              <button onClick={() => adjustDraft("menu", item.id, -1)} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.purpleLight, color: C.gold, fontWeight: 900, cursor: "pointer" }}>-</button>
               <span style={{ color: stockColor(item.stock), fontWeight: 800, minWidth: 22, textAlign: "center" }}>{item.stock}</span>
-              <button onClick={() => setMenu(p => p.map(m => m.id === item.id ? { ...m, stock: m.stock + 1 } : m))} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.gold, color: C.purple, fontWeight: 900, cursor: "pointer" }}>+</button>
+              <button onClick={() => adjustDraft("menu", item.id, 1)} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.gold, color: C.purple, fontWeight: 900, cursor: "pointer" }}>+</button>
             </div>
           </div>
         ))}
         <div style={{ color: C.goldPale, fontSize: 12, margin: "14px 0 8px", fontWeight: 700 }}>Sides</div>
-        {sides.map(side => (
+        {draftSides.map(side => (
           <div key={side.id} style={{ background: C.purple, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, border: `1px solid ${side.stock === 0 ? C.red : side.stock <= 3 ? C.orange : C.purpleLight}` }}>
             <div><div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{side.name}</div><div style={{ color: stockColor(side.stock), fontSize: 11 }}>{side.stock === 0 ? "OUT OF STOCK" : side.stock <= 3 ? `⚠ ${side.stock} left` : `${side.stock} avail`}</div></div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <button onClick={() => setSides(p => p.map(s => s.id === side.id ? { ...s, stock: Math.max(0, s.stock - 1) } : s))} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.purpleLight, color: C.gold, fontWeight: 900, cursor: "pointer" }}>-</button>
+              <button onClick={() => adjustDraft("sides", side.id, -1)} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.purpleLight, color: C.gold, fontWeight: 900, cursor: "pointer" }}>-</button>
               <span style={{ color: stockColor(side.stock), fontWeight: 800, minWidth: 22, textAlign: "center" }}>{side.stock}</span>
-              <button onClick={() => setSides(p => p.map(s => s.id === side.id ? { ...s, stock: s.stock + 1 } : s))} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.gold, color: C.purple, fontWeight: 900, cursor: "pointer" }}>+</button>
+              <button onClick={() => adjustDraft("sides", side.id, 1)} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.gold, color: C.purple, fontWeight: 900, cursor: "pointer" }}>+</button>
             </div>
           </div>
         ))}
       </div>
       <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, maxWidth: 480, margin: "0 auto", background: C.purple, borderTop: `2px solid ${C.gold}`, padding: 14 }}>
-        <Btn onClick={sendUpdate} disabled={sending} style={{ width: "100%" }}>{sending ? "Sending..." : "📣 Send Update to Manager & Chef"}</Btn>
+        <Btn onClick={sendUpdate} disabled={sending} style={{ width: "100%" }}>{sending ? "Sending..." : "📣 Send to Head Chef"}</Btn>
       </div>
     </div>
   );
