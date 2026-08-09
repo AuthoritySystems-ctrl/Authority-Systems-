@@ -1949,6 +1949,11 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   const lastNotifCheck = useRef(new Date().toISOString());
 
+  const addNotification = useCallback((msg) => {
+    setNotification(msg);
+    setTimeout(() => setNotification(null), 3500);
+  }, []);
+
   const computeShiftSummary = async (staff, clockInIso, clockOutIso) => {
     const base = { name: staff.name, role: staff.role, clockIn: clockInIso, clockOut: clockOutIso };
     try {
@@ -2010,14 +2015,28 @@ export default function App() {
     }
   }, []);
 
+  // FIX: added explicit clock_in timestamp (removes dependency on a DB default),
+  // and surfaced the Supabase error instead of silently doing nothing on failure.
   const handleClockIn = useCallback(async () => {
-    const { data, error } = await supabase.from("shifts").insert({ staff_id: pendingStaff.id, staff_name: pendingStaff.name, role: pendingStaff.role }).select().single();
+    const { data, error } = await supabase
+      .from("shifts")
+      .insert({
+        staff_id: pendingStaff.id,
+        staff_name: pendingStaff.name,
+        role: pendingStaff.role,
+        clock_in: new Date().toISOString(),
+      })
+      .select()
+      .single();
     if (!error && data) {
       setShiftId(data.id);
       setUser(pendingStaff);
       setPendingStaff(null);
+    } else {
+      addNotification(`Clock-in failed: ${error?.message || "unknown error"}`);
+      console.error("Clock-in error:", error);
     }
-  }, [pendingStaff]);
+  }, [pendingStaff, addNotification]);
 
   const handleClockOut = useCallback(async () => {
     if (user) {
@@ -2107,11 +2126,6 @@ export default function App() {
       if (toDelete.length) await supabase.from("sides").delete().in("id", toDelete);
     })();
   }, [sides, loaded]);
-
-  const addNotification = useCallback((msg) => {
-    setNotification(msg);
-    setTimeout(() => setNotification(null), 3500);
-  }, []);
 
   if (!user && shiftSummary) return <ClockOutSummaryScreen data={shiftSummary} onDone={() => setShiftSummary(null)} />;
   if (!user && pendingStaff) return <ClockInScreen staff={pendingStaff} onClockIn={handleClockIn} onCancel={() => setPendingStaff(null)} />;
