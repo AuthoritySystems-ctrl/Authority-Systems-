@@ -2033,10 +2033,10 @@ export default function App() {
       setUser(pendingStaff);
       setPendingStaff(null);
     } else {
-      addNotification(`Clock-in failed: ${error?.message || "unknown error"}`);
+      alert(`Clock-in failed: ${error?.message || error?.details || error?.hint || "unknown error"}`);
       console.error("Clock-in error:", error);
     }
-  }, [pendingStaff, addNotification]);
+  }, [pendingStaff]);
 
   const handleClockOut = useCallback(async () => {
     if (user) {
