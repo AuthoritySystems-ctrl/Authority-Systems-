@@ -420,22 +420,37 @@ const TakeawayModal = ({ onConfirm, onCancel, existingCount }) => {
   );
 };
 
-const NewTableModal = ({ onConfirm, onCancel }) => {
+const NewTableModal = ({ onConfirm, onCancel, existingIds = [] }) => {
+  const [number, setNumber] = useState("");
   const [guests, setGuests] = useState("");
+  const [error, setError] = useState("");
+
+  const submit = () => {
+    const n = parseInt(number);
+    if (!n || n <= 0) { setError("Enter a valid table number"); return; }
+    if (existingIds.includes(n)) { setError(`Table ${n} is already open`); return; }
+    if (!guests) { setError("Select number of guests"); return; }
+    setError("");
+    onConfirm(String(n), guests);
+  };
+
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 20 }}>
       <div style={{ background: C.purple, borderRadius: 16, padding: 24, width: "100%", maxWidth: 320, border: `2px solid ${C.gold}` }}>
         <h3 style={{ color: C.gold, margin: "0 0 6px" }}>New Table</h3>
-        <p style={{ color: C.goldPale, fontSize: 12, marginBottom: 14 }}>For overflow seating not on the regular floor plan</p>
+        <p style={{ color: C.goldPale, fontSize: 12, marginBottom: 16 }}>For overflow seating not on the regular floor plan</p>
+        <p style={{ color: C.goldPale, fontSize: 13, marginBottom: 8 }}>Table Number</p>
+        <input value={number} onChange={e => setNumber(e.target.value.replace(/[^0-9]/g, ""))} placeholder="e.g. 15" inputMode="numeric" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.purpleLight}`, background: C.purpleDark, color: C.goldPale, fontSize: 14, marginBottom: 16, boxSizing: "border-box" }} />
         <p style={{ color: C.goldPale, fontSize: 13, marginBottom: 10 }}>Guests</p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 8, marginBottom: 18 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 8, marginBottom: 12 }}>
           {[1,2,3,4,5,6,7,8,9,10].map(n => (
             <button key={n} onClick={() => setGuests(String(n))} style={{ height: 42, borderRadius: 8, border: `2px solid ${guests == n ? C.gold : C.purpleLight}`, background: guests == n ? C.gold : "transparent", color: guests == n ? C.purple : C.goldPale, fontWeight: 700, cursor: "pointer" }}>{n}</button>
           ))}
         </div>
+        {error && <p style={{ color: C.redLight, fontSize: 12, marginBottom: 10 }}>{error}</p>}
         <div style={{ display: "flex", gap: 10 }}>
           <Btn onClick={onCancel} color={C.purpleLight} textColor={C.goldPale} style={{ flex: 1 }}>Cancel</Btn>
-          <Btn onClick={() => onConfirm(guests)} disabled={!guests} style={{ flex: 1 }}>Open →</Btn>
+          <Btn onClick={submit} style={{ flex: 1 }}>Open →</Btn>
         </div>
       </div>
     </div>
@@ -627,12 +642,12 @@ const WaiterView = ({ tables, setTables, menu, sides, setMenu, setSides, user, a
   const takeawayOrders = tables.filter(t => t.isTakeaway && t.status !== "free");
   const takeawayCount = takeawayOrders.length;
 
-  const openNewTable = (guestsStr) => {
+  const openNewTable = (numberStr, guestsStr) => {
+    const id = parseInt(numberStr);
     const g = parseInt(guestsStr);
-    if (!g) return;
-    const nextId = Math.max(10, ...tables.filter(t => !t.isTakeaway).map(t => t.id)) + 1;
-    const newTable = { id: nextId, status: "occupied", guests: g, waiterId: user.id, order: [], orderSentAt: null, openedAt: nowTime(), openedTs: Date.now(), reservation: null, isTakeaway: false, takeawayNumber: null };
-    setTables(prev => [...prev, newTable]);
+    if (!id || !g) return;
+    const newTable = { id, status: "occupied", guests: g, waiterId: user.id, order: [], orderSentAt: null, openedAt: nowTime(), openedTs: Date.now(), reservation: null, isTakeaway: false, takeawayNumber: null };
+    setTables(prev => [...prev.filter(t => t.id !== id), newTable]);
     setActiveTable(newTable);
     setAddingTable(false);
     setView("order");
@@ -678,7 +693,7 @@ const WaiterView = ({ tables, setTables, menu, sides, setMenu, setSides, user, a
     <div style={{ minHeight: "100vh", background: C.purpleDark }}>
       <TopBar user={user} />
       {showTakeaway && <TakeawayModal existingCount={takeawayCount} onConfirm={startTakeaway} onCancel={() => setShowTakeaway(false)} />}
-      {addingTable && <NewTableModal onConfirm={openNewTable} onCancel={() => setAddingTable(false)} />}
+      {addingTable && <NewTableModal onConfirm={openNewTable} onCancel={() => setAddingTable(false)} existingIds={tables.filter(t => t.status !== "free").map(t => t.id)} />}
       {openingTable && <OpenTableModal tableId={openingTable} onOpen={(g) => openTable(openingTable, g)} onCancel={() => setOpeningTable(null)} />}
 
       <div style={{ padding: 16 }}>
@@ -1403,12 +1418,12 @@ const FloorPlan = ({ tables, setTables, canReserve, addNotification, menu, sides
     setOrderingTable(newOrder);
   };
 
-  const startNewTable = (guestsStr) => {
+  const startNewTable = (numberStr, guestsStr) => {
+    const id = parseInt(numberStr);
     const g = parseInt(guestsStr);
-    if (!g) return;
-    const nextId = Math.max(10, ...diningTables.map(t => t.id)) + 1;
-    const newTable = { id: nextId, status: "occupied", guests: g, waiterId: user?.id || null, order: [], orderSentAt: null, openedAt: nowTime(), openedTs: Date.now(), reservation: null, isTakeaway: false, takeawayNumber: null };
-    setTables(prev => [...prev, newTable]);
+    if (!id || !g) return;
+    const newTable = { id, status: "occupied", guests: g, waiterId: user?.id || null, order: [], orderSentAt: null, openedAt: nowTime(), openedTs: Date.now(), reservation: null, isTakeaway: false, takeawayNumber: null };
+    setTables(prev => [...prev.filter(t => t.id !== id), newTable]);
     setAddingTable(false);
     setOrderingTable(newTable);
   };
@@ -1430,7 +1445,7 @@ const FloorPlan = ({ tables, setTables, canReserve, addNotification, menu, sides
   return (
     <div>
       {showTakeaway && <TakeawayModal existingCount={takeawayCount} onConfirm={startTakeaway} onCancel={() => setShowTakeaway(false)} />}
-      {addingTable && <NewTableModal onConfirm={startNewTable} onCancel={() => setAddingTable(false)} />}
+      {addingTable && <NewTableModal onConfirm={startNewTable} onCancel={() => setAddingTable(false)} existingIds={tables.filter(t => t.status !== "free").map(t => t.id)} />}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           {[["Free", C.green], ["Active", C.purpleLight], ["Bill", C.orange], ["Reserved", C.blue]].map(([l, c]) => (
@@ -1720,12 +1735,12 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
     setShowOrder(true);
   };
 
-  const openNewTable = (guestsStr) => {
+  const openNewTable = (numberStr, guestsStr) => {
+    const id = parseInt(numberStr);
     const g = parseInt(guestsStr);
-    if (!g) return;
-    const nextId = Math.max(10, ...tables.filter(t => !t.isTakeaway).map(t => t.id)) + 1;
-    const newTable = { id: nextId, status: "occupied", guests: g, waiterId: user.id, order: [], orderSentAt: null, openedAt: nowTime(), openedTs: Date.now(), reservation: null, isTakeaway: false, takeawayNumber: null };
-    setTables(prev => [...prev, newTable]);
+    if (!id || !g) return;
+    const newTable = { id, status: "occupied", guests: g, waiterId: user.id, order: [], orderSentAt: null, openedAt: nowTime(), openedTs: Date.now(), reservation: null, isTakeaway: false, takeawayNumber: null };
+    setTables(prev => [...prev.filter(t => t.id !== id), newTable]);
     setActiveTable(newTable);
     setAddingTable(false);
     setShowOrder(true);
@@ -1761,7 +1776,7 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
     <div style={{ minHeight: "100vh", background: C.purpleDark }}>
       <TopBar user={user} />
       {showTakeaway && <TakeawayModal existingCount={takeawayCount} onConfirm={startTakeaway} onCancel={() => setShowTakeaway(false)} />}
-      {addingTable && <NewTableModal onConfirm={openNewTable} onCancel={() => setAddingTable(false)} />}
+      {addingTable && <NewTableModal onConfirm={openNewTable} onCancel={() => setAddingTable(false)} existingIds={tables.filter(t => t.status !== "free").map(t => t.id)} />}
       {openingTable && <OpenTableModal tableId={openingTable} onOpen={(g) => openTable(openingTable, g)} onCancel={() => setOpeningTable(null)} />}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, padding: "12px 16px 0" }}>
         {[["Active", occupied, C.gold], ["Revenue", fmt(liveRev), C.greenLight], ["Out", outOfStock, C.redLight], ["Low", lowStock, C.orange]].map(([l, v, c]) => (
