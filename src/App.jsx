@@ -118,7 +118,7 @@ const Btn = ({ children, onClick, color = C.gold, textColor = C.purple, style = 
 
 const Notification = ({ msg, onClose }) => (
   <div style={{ position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: C.gold, color: C.purple, borderRadius: 10, padding: "12px 20px", fontWeight: 700, fontSize: 14, boxShadow: "0 4px 20px rgba(0,0,0,0.4)", display: "flex", alignItems: "center", gap: 12, maxWidth: 340, width: "90%" }}>
-    <span>馃敂 {msg}</span>
+    <span>🔔 {msg}</span>
     <span onClick={onClose} style={{ cursor: "pointer", fontWeight: 900, marginLeft: "auto" }}>x</span>
   </div>
 );
@@ -174,7 +174,7 @@ const PinLogin = ({ onLogin }) => {
         else setError("Fingerprint not linked to a known staff member");
       }
     } catch (e) {
-      setError("Fingerprint login failed 鈥� use PIN instead");
+      setError("Fingerprint login failed — use PIN instead");
     }
     setBioBusy(false);
   };
@@ -188,13 +188,13 @@ const PinLogin = ({ onLogin }) => {
         <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 14 }}>
           {[0,1,2,3].map(i => (
             <div key={i} style={{ width: 42, height: 42, borderRadius: 8, background: C.purple, border: `2px solid ${pin.length > i ? C.gold : C.purpleLight}`, display: "flex", alignItems: "center", justifyContent: "center", color: C.gold, fontSize: 20, fontWeight: 900 }}>
-              {pin.length > i ? "鈼�" : ""}
+              {pin.length > i ? "●" : ""}
             </div>
           ))}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, maxWidth: 230, margin: "0 auto 10px" }}>
-          {[1,2,3,4,5,6,7,8,9,"",0,"鈱�"].map((k, i) => (
-            <button key={i} onClick={() => { if (k === "鈱�") setPin(p => p.slice(0,-1)); else if (k !== "" && pin.length < 4) setPin(p => p + k); }} style={{ height: 50, borderRadius: 10, border: k === "" ? "none" : `1px solid ${C.purpleLight}`, background: k === "" ? "transparent" : C.purple, color: C.gold, fontSize: 20, fontWeight: 700, cursor: k === "" ? "default" : "pointer" }}>{k}</button>
+          {[1,2,3,4,5,6,7,8,9,"",0,"DEL"].map((k, i) => (
+            <button key={i} onClick={() => { if (k === "DEL") setPin(p => p.slice(0,-1)); else if (k !== "" && pin.length < 4) setPin(p => p + k); }} style={{ height: 50, borderRadius: 10, border: k === "" ? "none" : `1px solid ${C.purpleLight}`, background: k === "" ? "transparent" : C.purple, color: C.gold, fontSize: 20, fontWeight: 700, cursor: k === "" ? "default" : "pointer" }}>{k}</button>
           ))}
         </div>
         <div style={{ textAlign: "center", marginBottom: 10 }}>
@@ -202,7 +202,7 @@ const PinLogin = ({ onLogin }) => {
         </div>
         {hasBiometric && (
           <Btn onClick={useBiometric} disabled={bioBusy} color={C.purpleLight} textColor={C.goldPale} style={{ width: "100%", marginBottom: 8 }}>
-            {bioBusy ? "Checking fingerprint..." : "馃憜 Use Fingerprint"}
+            {bioBusy ? "Checking fingerprint..." : "👆 Use Fingerprint"}
           </Btn>
         )}
         {error && <p style={{ color: C.redLight, textAlign: "center", fontSize: 12 }}>{error}</p>}
@@ -255,13 +255,13 @@ const ClockInScreen = ({ staff, onClockIn, onCancel }) => {
         <p style={{ color: C.goldPale, fontSize: 14, marginBottom: 4 }}>Welcome back,</p>
         <h2 style={{ color: C.gold, margin: "0 0 4px", fontSize: 22 }}>{staff.name}</h2>
         <p style={{ color: C.gray300, fontSize: 12, textTransform: "uppercase", letterSpacing: 1, marginBottom: 28 }}>{staff.role}</p>
-        <Btn onClick={onClockIn} style={{ width: "100%", padding: "16px" }}>馃晲 Clock In</Btn>
+        <Btn onClick={onClockIn} style={{ width: "100%", padding: "16px" }}>🕐 Clock In</Btn>
         {supported && bioStatus !== "done" && (
           <button onClick={enableBiometric} disabled={bioStatus === "working"} style={{ background: "none", border: `1px solid ${C.purpleLight}`, color: C.goldPale, fontSize: 12, marginTop: 14, padding: "10px 12px", borderRadius: 8, cursor: "pointer", width: "100%" }}>
-            {bioStatus === "working" ? "Follow the prompt..." : bioStatus === "error" ? "Try Fingerprint Again" : "馃憜 Enable Fingerprint Login on This Device"}
+            {bioStatus === "working" ? "Follow the prompt..." : bioStatus === "error" ? "Try Fingerprint Again" : "👆 Enable Fingerprint Login on This Device"}
           </button>
         )}
-        {bioStatus === "done" && <p style={{ color: C.greenLight, fontSize: 12, marginTop: 12 }}>鉁� Fingerprint enabled for next time</p>}
+        {bioStatus === "done" && <p style={{ color: C.greenLight, fontSize: 12, marginTop: 12 }}>✔️ Fingerprint enabled for next time</p>}
         <button onClick={onCancel} style={{ background: "none", border: "none", color: C.gray500, fontSize: 12, marginTop: 16, cursor: "pointer" }}>Not you? Go back</button>
       </div>
     </div>
@@ -269,16 +269,16 @@ const ClockInScreen = ({ staff, onClockIn, onCancel }) => {
 };
 
 const ClockOutSummaryScreen = ({ data, onDone }) => {
-  const fmtTime = (iso) => iso ? new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "鈥�";
+  const fmtTime = (iso) => iso ? new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
   const roleLabel = { waiter: "Waiter", cashier: "Cashier", bar: "Bar", stock: "Stock", kitchen: "Head Chef", line_chef: "Line Chef", manager: "Manager", receptionist: "Receptionist" }[data.role] || data.role;
 
   return (
     <div style={{ minHeight: "100vh", background: C.purpleDark, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20 }}>
       <div style={{ width: "100%", maxWidth: 380, background: C.purple, borderRadius: 16, padding: 24, border: `2px solid ${C.gold}`, maxHeight: "85vh", overflowY: "auto" }}>
         <div style={{ textAlign: "center", marginBottom: 18 }}>
-          <div style={{ fontSize: 30 }}>鉁�</div>
+          <div style={{ fontSize: 30 }}>✅</div>
           <h2 style={{ color: C.gold, margin: "8px 0 2px" }}>Shift Complete</h2>
-          <div style={{ color: C.goldPale, fontSize: 13 }}>{data.name} 路 {roleLabel}</div>
+          <div style={{ color: C.goldPale, fontSize: 13 }}>{data.name} - {roleLabel}</div>
         </div>
         <div style={{ background: C.purpleDark, borderRadius: 10, padding: 14, marginBottom: 16 }}>
           <div style={{ color: C.goldPale, fontSize: 12, marginBottom: 4 }}>Clocked in: <span style={{ color: C.gold, fontWeight: 700 }}>{fmtTime(data.clockIn)}</span></div>
@@ -297,9 +297,9 @@ const ClockOutSummaryScreen = ({ data, onDone }) => {
         {data.role === "cashier" && (
           <div style={{ marginBottom: 10 }}>
             <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.purpleLight}` }}><span style={{ color: C.goldPale, fontSize: 13 }}>Tables closed</span><span style={{ color: C.gold, fontWeight: 700 }}>{data.tablesClosed || 0}</span></div>
-            <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.purpleLight}` }}><span style={{ color: C.goldPale, fontSize: 13 }}>馃挼 Cash</span><span style={{ color: C.gold, fontWeight: 700 }}>{fmt(data.cash || 0)}</span></div>
-            <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.purpleLight}` }}><span style={{ color: C.goldPale, fontSize: 13 }}>馃挸 Card/Tap</span><span style={{ color: C.gold, fontWeight: 700 }}>{fmt(data.card || 0)}</span></div>
-            <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.purpleLight}` }}><span style={{ color: C.goldPale, fontSize: 13 }}>馃摫 Mobile</span><span style={{ color: C.gold, fontWeight: 700 }}>{fmt(data.mobile || 0)}</span></div>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.purpleLight}` }}><span style={{ color: C.goldPale, fontSize: 13 }}>💵 Cash</span><span style={{ color: C.gold, fontWeight: 700 }}>{fmt(data.cash || 0)}</span></div>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.purpleLight}` }}><span style={{ color: C.goldPale, fontSize: 13 }}>💳 Card/Tap</span><span style={{ color: C.gold, fontWeight: 700 }}>{fmt(data.card || 0)}</span></div>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.purpleLight}` }}><span style={{ color: C.goldPale, fontSize: 13 }}>📱 Mobile</span><span style={{ color: C.gold, fontWeight: 700 }}>{fmt(data.mobile || 0)}</span></div>
             <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0" }}><span style={{ color: C.goldPale, fontSize: 13, fontWeight: 700 }}>Total revenue</span><span style={{ color: C.greenLight, fontWeight: 800 }}>{fmt(data.total || 0)}</span></div>
           </div>
         )}
@@ -356,7 +356,7 @@ const SidesPicker = ({ item, sides, onConfirm, onCancel }) => {
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 300 }}>
       <div style={{ background: C.purpleDark, borderRadius: "20px 20px 0 0", padding: 20, width: "100%", maxWidth: 480, border: `2px solid ${C.gold}`, borderBottom: "none" }}>
         <div style={{ color: C.gold, fontWeight: 800, fontSize: 16, marginBottom: 4 }}>{item.name}</div>
-        <div style={{ color: C.goldPale, fontSize: 13, marginBottom: 14 }}>Choose {required} side{required > 1 ? "s" : ""} 鈥� {chosen.length}/{required} selected</div>
+        <div style={{ color: C.goldPale, fontSize: 13, marginBottom: 14 }}>Choose {required} side{required > 1 ? "s" : ""} — {chosen.length}/{required} selected</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 18 }}>
           {sides.map(side => {
             const out = side.stock === 0;
@@ -366,7 +366,7 @@ const SidesPicker = ({ item, sides, onConfirm, onCancel }) => {
               <button key={side.id} onClick={() => toggle(side.id)} disabled={out} style={{ background: picked ? C.gold : out ? "#1a0a18" : C.purple, color: picked ? C.purple : out ? C.gray500 : C.goldPale, border: `2px solid ${picked ? C.gold : out ? C.red : low ? C.orange : C.purpleLight}`, borderRadius: 10, padding: "12px 14px", cursor: out ? "not-allowed" : "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontWeight: 700, fontSize: 14 }}>{side.name}</span>
                 <span style={{ fontSize: 11, fontWeight: 700, background: out ? C.red : low ? C.orange : "transparent", color: out || low ? C.white : picked ? C.gold : "transparent", padding: out || low ? "2px 8px" : 0, borderRadius: 8 }}>
-                  {out ? "OUT OF STOCK" : low ? `Only ${side.stock} left` : picked ? "鉁�" : ""}
+                  {out ? "OUT OF STOCK" : low ? `Only ${side.stock} left` : picked ? "✔️" : ""}
                 </span>
               </button>
             );
@@ -374,7 +374,7 @@ const SidesPicker = ({ item, sides, onConfirm, onCancel }) => {
         </div>
         <div style={{ display: "flex", gap: 10 }}>
           <Btn onClick={onCancel} color={C.purpleLight} textColor={C.goldPale} style={{ flex: 1 }}>Cancel</Btn>
-          <Btn onClick={() => onConfirm(chosen)} disabled={chosen.length < required} style={{ flex: 1 }}>Add to Order 鈫�</Btn>
+          <Btn onClick={() => onConfirm(chosen)} disabled={chosen.length < required} style={{ flex: 1 }}>Add to Order ></Btn>
         </div>
       </div>
     </div>
@@ -395,7 +395,7 @@ const OpenTableModal = ({ tableId, onOpen, onCancel }) => {
         </div>
         <div style={{ display: "flex", gap: 10 }}>
           <Btn onClick={onCancel} color={C.purpleLight} textColor={C.goldPale} style={{ flex: 1 }}>Cancel</Btn>
-          <Btn onClick={() => onOpen(guests)} disabled={!guests} style={{ flex: 1 }}>Open 鈫�</Btn>
+          <Btn onClick={() => onOpen(guests)} disabled={!guests} style={{ flex: 1 }}>Open ></Btn>
         </div>
       </div>
     </div>
@@ -407,13 +407,13 @@ const TakeawayModal = ({ onConfirm, onCancel, existingCount }) => {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 20 }}>
       <div style={{ background: C.purple, borderRadius: 16, padding: 24, width: "100%", maxWidth: 320, border: `2px solid ${C.teal}` }}>
-        <div style={{ fontSize: 32, textAlign: "center", marginBottom: 8 }}>馃ァ</div>
+        <div style={{ fontSize: 32, textAlign: "center", marginBottom: 8 }}>🥡</div>
         <h3 style={{ color: C.gold, margin: "0 0 6px", textAlign: "center" }}>New Takeaway Order</h3>
         <p style={{ color: C.goldPale, fontSize: 13, marginBottom: 16, textAlign: "center" }}>TK{existingCount + 1}</p>
         <input placeholder="Customer name (optional)" value={name} onChange={e => setName(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.purpleLight}`, background: C.purpleDark, color: C.goldPale, fontSize: 14, marginBottom: 18, boxSizing: "border-box" }} />
         <div style={{ display: "flex", gap: 10 }}>
           <Btn onClick={onCancel} color={C.purpleLight} textColor={C.goldPale} style={{ flex: 1 }}>Cancel</Btn>
-          <Btn onClick={() => onConfirm(name || `TK${existingCount + 1}`)} color={C.teal} textColor={C.white} style={{ flex: 1 }}>Start Order 鈫�</Btn>
+          <Btn onClick={() => onConfirm(name || `TK${existingCount + 1}`)} color={C.teal} textColor={C.white} style={{ flex: 1 }}>Start Order ></Btn>
         </div>
       </div>
     </div>
@@ -450,7 +450,7 @@ const NewTableModal = ({ onConfirm, onCancel, existingIds = [] }) => {
         {error && <p style={{ color: C.redLight, fontSize: 12, marginBottom: 10 }}>{error}</p>}
         <div style={{ display: "flex", gap: 10 }}>
           <Btn onClick={onCancel} color={C.purpleLight} textColor={C.goldPale} style={{ flex: 1 }}>Cancel</Btn>
-          <Btn onClick={submit} style={{ flex: 1 }}>Open 鈫�</Btn>
+          <Btn onClick={submit} style={{ flex: 1 }}>Open ></Btn>
         </div>
       </div>
     </div>
@@ -497,7 +497,7 @@ const TransferModal = ({ table, managerPin, onConfirm, onCancel }) => {
       });
       if (assertion) onConfirm(newWaiterId);
     } catch (e) {
-      setError("Fingerprint failed 鈥� try PIN instead");
+      setError("Fingerprint failed — try PIN instead");
     }
     setBioBusy(false);
   };
@@ -517,7 +517,7 @@ const TransferModal = ({ table, managerPin, onConfirm, onCancel }) => {
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <Btn onClick={onCancel} color={C.purpleLight} textColor={C.goldPale} style={{ flex: 1 }}>Cancel</Btn>
-              <Btn onClick={() => setStep("auth")} disabled={!newWaiterId} style={{ flex: 1 }}>Next 鈫�</Btn>
+              <Btn onClick={() => setStep("auth")} disabled={!newWaiterId} style={{ flex: 1 }}>Next ></Btn>
             </div>
           </>
         ) : (
@@ -526,20 +526,20 @@ const TransferModal = ({ table, managerPin, onConfirm, onCancel }) => {
             <p style={{ color: C.goldPale, fontSize: 12, marginBottom: 16 }}>Confirm transferring {label} to <strong style={{ color: C.gold }}>{STAFF.find(s => s.id === newWaiterId)?.name}</strong></p>
             {hasBiometric && (
               <Btn onClick={confirmBiometric} disabled={bioBusy} color={C.purpleLight} textColor={C.goldPale} style={{ width: "100%", marginBottom: 12 }}>
-                {bioBusy ? "Checking fingerprint..." : "馃憜 Confirm with Fingerprint"}
+                {bioBusy ? "Checking fingerprint..." : "👆 Confirm with Fingerprint"}
               </Btn>
             )}
             <p style={{ color: C.goldPale, fontSize: 12, marginBottom: 8 }}>Or enter your manager PIN</p>
             <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 14 }}>
               {[0,1,2,3].map(i => (
                 <div key={i} style={{ width: 40, height: 40, borderRadius: 8, background: C.purpleDark, border: `2px solid ${pin.length > i ? C.gold : C.purpleLight}`, display: "flex", alignItems: "center", justifyContent: "center", color: C.gold, fontSize: 18, fontWeight: 900 }}>
-                  {pin.length > i ? "鈼�" : ""}
+                  {pin.length > i ? "●" : ""}
                 </div>
               ))}
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, maxWidth: 220, margin: "0 auto 14px" }}>
-              {[1,2,3,4,5,6,7,8,9,"",0,"鈱�"].map((k, i) => (
-                <button key={i} onClick={() => { if (k === "鈱�") setPin(p => p.slice(0,-1)); else if (k !== "" && pin.length < 4) setPin(p => p + k); }} style={{ height: 42, borderRadius: 8, border: k === "" ? "none" : `1px solid ${C.purpleLight}`, background: k === "" ? "transparent" : C.purpleDark, color: C.gold, fontSize: 16, fontWeight: 700, cursor: k === "" ? "default" : "pointer" }}>{k}</button>
+              {[1,2,3,4,5,6,7,8,9,"",0,"DEL"].map((k, i) => (
+                <button key={i} onClick={() => { if (k === "DEL") setPin(p => p.slice(0,-1)); else if (k !== "" && pin.length < 4) setPin(p => p + k); }} style={{ height: 42, borderRadius: 8, border: k === "" ? "none" : `1px solid ${C.purpleLight}`, background: k === "" ? "transparent" : C.purpleDark, color: C.gold, fontSize: 16, fontWeight: 700, cursor: k === "" ? "default" : "pointer" }}>{k}</button>
               ))}
             </div>
             {error && <p style={{ color: C.redLight, fontSize: 12, textAlign: "center", marginBottom: 10 }}>{error}</p>}
@@ -600,16 +600,16 @@ const OrderPanel = ({ activeTable, setActiveTable, tables, setTables, menu, side
 
   const filteredMenu = menu.filter(m => m.category === selectedCat);
   const total = orderTotal(activeTable.order);
-  const label = activeTable.isTakeaway ? `馃ァ ${activeTable.takeawayNumber}` : `Table ${activeTable.id}`;
+  const label = activeTable.isTakeaway ? `🥡 ${activeTable.takeawayNumber}` : `Table ${activeTable.id}`;
 
   return (
     <div style={{ minHeight: "100vh", background: C.purpleDark, display: "flex", flexDirection: "column" }}>
       {sidesPicker && <SidesPicker item={sidesPicker} sides={sides} onConfirm={confirmSides} onCancel={() => setSidesPicker(null)} />}
       <div style={{ background: activeTable.isTakeaway ? C.teal : C.purple, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10, position: "sticky", top: 0, zIndex: 100 }}>
-        <button onClick={onBack} style={{ background: "none", border: "none", color: C.gold, fontSize: 22, cursor: "pointer" }}>鈫�</button>
+        <button onClick={onBack} style={{ background: "none", border: "none", color: C.gold, fontSize: 22, cursor: "pointer" }}><</button>
         <div style={{ flex: 1 }}>
           <div style={{ color: C.gold, fontWeight: 800 }}>{label}</div>
-          <div style={{ color: C.goldPale, fontSize: 11 }}>{activeTable.isTakeaway ? activeTable.takeawayNumber : `${activeTable.guests} guests`} 路 {activeTable.openedAt}</div>
+          <div style={{ color: C.goldPale, fontSize: 11 }}>{activeTable.isTakeaway ? activeTable.takeawayNumber : `${activeTable.guests} guests`} - {activeTable.openedAt}</div>
         </div>
         <Logo size={22} />
       </div>
@@ -666,7 +666,7 @@ const OrderPanel = ({ activeTable, setActiveTable, tables, setTables, menu, side
               <>
                 {openGroup && groups[openGroup] ? (
                   <>
-                    <button onClick={() => setOpenGroup(null)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", color: C.gold, fontWeight: 700, fontSize: 13, cursor: "pointer", padding: "4px 0 8px" }}>鈫� {openGroup}</button>
+                    <button onClick={() => setOpenGroup(null)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", color: C.gold, fontWeight: 700, fontSize: 13, cursor: "pointer", padding: "4px 0 8px" }}>< {openGroup}</button>
                     {groups[openGroup].map(renderItemCard)}
                   </>
                 ) : (
@@ -678,9 +678,9 @@ const OrderPanel = ({ activeTable, setActiveTable, tables, setTables, menu, side
                         <button key={key} onClick={() => setOpenGroup(key)} style={{ width: "100%", textAlign: "left", background: C.purple, borderRadius: 10, padding: "14px", border: `1px solid ${C.purpleLight}`, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
                           <div>
                             <div style={{ color: C.gold, fontWeight: 800, fontSize: 14 }}>{key}</div>
-                            <div style={{ color: C.gray500, fontSize: 11, marginTop: 2 }}>{items.length} option{items.length !== 1 ? "s" : ""}{!anyAvailable ? " 路 all out of stock" : ""}</div>
+                            <div style={{ color: C.gray500, fontSize: 11, marginTop: 2 }}>{items.length} option{items.length !== 1 ? "s" : ""}{!anyAvailable ? " - all out of stock" : ""}</div>
                           </div>
-                          <span style={{ color: C.goldPale, fontSize: 18 }}>鈫�</span>
+                          <span style={{ color: C.goldPale, fontSize: 18 }}>></span>
                         </button>
                       );
                     })}
@@ -695,7 +695,7 @@ const OrderPanel = ({ activeTable, setActiveTable, tables, setTables, menu, side
 
       <div style={{ background: activeTable.isTakeaway ? C.teal : C.purple, borderTop: `2px solid ${C.gold}`, padding: 14, position: "sticky", bottom: 0 }}>
         {activeTable.order.length === 0 ? (
-          <div style={{ color: C.gray500, textAlign: "center", fontSize: 13 }}>No items yet 鈥� select from the menu above</div>
+          <div style={{ color: C.gray500, textAlign: "center", fontSize: 13 }}>No items yet — select from the menu above</div>
         ) : (
           <>
             <div style={{ maxHeight: 130, overflowY: "auto", marginBottom: 10 }}>
@@ -704,7 +704,7 @@ const OrderPanel = ({ activeTable, setActiveTable, tables, setTables, menu, side
                   <div style={{ flex: 1 }}>
                     <span style={{ color: C.goldPale, fontWeight: 700, fontSize: 12 }}>{o.qty}x {o.name}</span>
                     {o.committed && <span style={{ color: C.greenLight, fontSize: 9, marginLeft: 6, fontWeight: 700 }}>SENT</span>}
-                    {o.sides && <div style={{ color: C.gray300, fontSize: 11 }}>鈫� {o.sides.map(s => s.name).join(", ")}</div>}
+                    {o.sides && <div style={{ color: C.gray300, fontSize: 11 }}>↳ {o.sides.map(s => s.name).join(", ")}</div>}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span style={{ color: C.gold, fontSize: 12, fontWeight: 700 }}>{fmt(o.price * o.qty)}</span>
@@ -717,7 +717,7 @@ const OrderPanel = ({ activeTable, setActiveTable, tables, setTables, menu, side
               <span>Total</span><span>{fmt(total)}</span>
             </div>
             <div style={{ display: "flex", gap: 10 }}>
-              <Btn onClick={sendToKitchen} style={{ flex: 1 }}>Send to Kitchen 鈫�</Btn>
+              <Btn onClick={sendToKitchen} style={{ flex: 1 }}>Send to Kitchen ></Btn>
               {showBillButton && activeTable.orderSentAt && (
                 <Btn onClick={() => { syncActive(activeTable.id, t => ({ ...t, status: "bill" })); onBack(); }} color={C.orange} textColor={C.white} style={{ flex: 1 }}>Request Bill</Btn>
               )}
@@ -801,7 +801,7 @@ const WaiterView = ({ tables, setTables, menu, sides, setMenu, setSides, user, a
               + Table
             </button>
             <button onClick={() => setShowTakeaway(true)} style={{ background: C.teal, color: C.white, border: "none", borderRadius: 10, padding: "8px 14px", fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-              馃ァ Takeaway
+              🥡 Takeaway
             </button>
           </div>
         </div>
@@ -815,7 +815,7 @@ const WaiterView = ({ tables, setTables, menu, sides, setMenu, setSides, user, a
             return (
               <button key={t.id} onClick={() => { if (free || reserved) setOpeningTable(t.id); else if (mine) { setActiveTable(tables.find(x => x.id === t.id)); setView("order"); } }} style={{ background: bg, border: `2px solid ${mine ? C.gold : (free || reserved) ? C.purpleLight : "transparent"}`, borderRadius: 12, padding: "14px 10px", cursor: (free || reserved || mine) ? "pointer" : "default", textAlign: "left", opacity: (!free && !reserved && !mine) ? 0.4 : 1 }}>
                 <div style={{ color: C.gold, fontWeight: 800, fontSize: 18 }}>T{t.id}</div>
-                <div style={{ color: C.goldPale, fontSize: 11, marginTop: 3 }}>{free ? "Free" : reserved ? `馃敄 ${t.reservation?.name}` : t.status === "bill" ? "鈴� Bill" : `${t.guests} guests`}</div>
+                <div style={{ color: C.goldPale, fontSize: 11, marginTop: 3 }}>{free ? "Free" : reserved ? `🔖 ${t.reservation?.name}` : t.status === "bill" ? "⏳ Bill" : `${t.guests} guests`}</div>
                 {mine && t.order.length > 0 && <div style={{ color: C.goldLight, fontSize: 11, marginTop: 3 }}>{fmt(orderTotal(t.order))}</div>}
               </button>
             );
@@ -824,17 +824,17 @@ const WaiterView = ({ tables, setTables, menu, sides, setMenu, setSides, user, a
 
         {takeawayOrders.length > 0 && (
           <>
-            <h3 style={{ color: C.teal, margin: "0 0 10px", fontSize: 13, letterSpacing: 1 }}>馃ァ TAKEAWAY ORDERS</h3>
+            <h3 style={{ color: C.teal, margin: "0 0 10px", fontSize: 13, letterSpacing: 1 }}>🥡 TAKEAWAY ORDERS</h3>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {takeawayOrders.map(t => (
                 <button key={t.id} onClick={() => { if (t.waiterId === user.id) { setActiveTable(t); setView("order"); } }} style={{ background: C.teal, border: `2px solid ${t.waiterId === user.id ? C.gold : "transparent"}`, borderRadius: 12, padding: "12px 14px", cursor: t.waiterId === user.id ? "pointer" : "default", textAlign: "left", opacity: t.waiterId === user.id ? 1 : 0.5, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
                     <div style={{ color: C.gold, fontWeight: 800, fontSize: 16 }}>{t.takeawayNumber}</div>
-                    <div style={{ color: C.white, fontSize: 11, marginTop: 2 }}>{t.customerName} 路 {t.openedAt}</div>
+                    <div style={{ color: C.white, fontSize: 11, marginTop: 2 }}>{t.customerName} - {t.openedAt}</div>
                   </div>
                   <div style={{ textAlign: "right" }}>
                     <div style={{ color: C.gold, fontWeight: 800 }}>{fmt(orderTotal(t.order))}</div>
-                    <div style={{ color: C.white, fontSize: 11 }}>{t.status === "bill" ? "鈴� Bill" : `${t.order.length} items`}</div>
+                    <div style={{ color: C.white, fontSize: 11 }}>{t.status === "bill" ? "⏳ Bill" : `${t.order.length} items`}</div>
                   </div>
                 </button>
               ))}
@@ -892,7 +892,7 @@ const KitchenView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
     const barDone = !hasDrinks || !!table.barReadyAt;
     setTables(prev => prev.map(t => t.id === tableId ? { ...t, kitchenReadyAt: nowTime(), status: barDone ? "bill" : t.status } : t));
     const label = table.isTakeaway ? `Takeaway ${table.takeawayNumber}` : `Table ${tableId}`;
-    addNotification(barDone ? `${label} is ready!` : `${label} food ready 鈥� waiting on bar`);
+    addNotification(barDone ? `${label} is ready!` : `${label} food ready — waiting on bar`);
     const items = foodItems.map(o => `${o.qty}x ${o.name}`).join(", ");
     supabase.from("shift_events").insert({
       staff_id: user.id, staff_name: user.name, role: "kitchen",
@@ -924,17 +924,17 @@ const KitchenView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
       <TopBar user={user} />
       <div style={{ padding: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <h2 style={{ color: C.gold, margin: 0, fontSize: 15 }}>馃嵆 ORDER QUEUE</h2>
+          <h2 style={{ color: C.gold, margin: 0, fontSize: 15 }}>🍳 ORDER QUEUE</h2>
           <button onClick={() => setCompact(v => !v)} style={{ background: compact ? C.gold : C.purple, color: compact ? C.purple : C.goldPale, border: `1px solid ${C.purpleLight}`, borderRadius: 8, padding: "6px 12px", fontWeight: 700, fontSize: 11, cursor: "pointer" }}>{compact ? "Full View" : "Compact View"}</button>
         </div>
         {pending.length === 0 ? (
-          <div style={{ background: C.purple, borderRadius: 12, padding: 40, textAlign: "center", marginBottom: 20 }}><div style={{ fontSize: 36 }}>鉁�</div><div style={{ color: C.goldPale, marginTop: 10 }}>All caught up!</div></div>
+          <div style={{ background: C.purple, borderRadius: 12, padding: 40, textAlign: "center", marginBottom: 20 }}><div style={{ fontSize: 36 }}>✅</div><div style={{ color: C.goldPale, marginTop: 10 }}>All caught up!</div></div>
         ) : compact ? (
           <div style={{ marginBottom: 20 }}>
             {pending.map(t => (
               <button key={t.id} onClick={() => markReady(t.id)} style={{ width: "100%", textAlign: "left", background: C.purple, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, border: `2px solid ${orderAgeColor(t.orderSentTs) || C.purpleLight}`, cursor: "pointer" }}>
                 <div>
-                  <div style={{ color: C.gold, fontWeight: 800, fontSize: 14 }}>{t.isTakeaway ? `馃ァ ${t.takeawayNumber}` : `Table ${t.id}`}</div>
+                  <div style={{ color: C.gold, fontWeight: 800, fontSize: 14 }}>{t.isTakeaway ? `🥡 ${t.takeawayNumber}` : `Table ${t.id}`}</div>
                   <div style={{ color: C.gray500, fontSize: 11 }}>{t.order.filter(o => !isDrink(o)).length} food item{t.order.filter(o => !isDrink(o)).length !== 1 ? "s" : ""}</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
@@ -950,7 +950,7 @@ const KitchenView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
               <div key={t.id} style={{ background: t.isTakeaway ? C.teal : C.purple, borderRadius: 12, padding: 16, border: `2px solid ${orderAgeColor(t.orderSentTs) || C.gold}`, marginBottom: 12 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
                   <div>
-                    <div style={{ color: C.gold, fontWeight: 800, fontSize: 18 }}>{t.isTakeaway ? `馃ァ ${t.takeawayNumber}` : `Table ${t.id}`}</div>
+                    <div style={{ color: C.gold, fontWeight: 800, fontSize: 18 }}>{t.isTakeaway ? `🥡 ${t.takeawayNumber}` : `Table ${t.id}`}</div>
                     {t.isTakeaway && <div style={{ color: C.white, fontSize: 11 }}>{t.customerName}</div>}
                   </div>
                   <div style={{ textAlign: "right" }}>
@@ -961,17 +961,17 @@ const KitchenView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
                 {t.order.filter(o => !isDrink(o)).map((o, i) => (
                   <div key={i} style={{ marginBottom: 8 }}>
                     <div style={{ color: C.goldPale, fontSize: 14, fontWeight: 700 }}>{o.qty}x {o.name}</div>
-                    {o.sides && <div style={{ color: C.gray300, fontSize: 12, marginTop: 2 }}>鈫� {o.sides.map(s => s.name).join(", ")}</div>}
+                    {o.sides && <div style={{ color: C.gray300, fontSize: 12, marginTop: 2 }}>↳ {o.sides.map(s => s.name).join(", ")}</div>}
                   </div>
                 ))}
-                <Btn onClick={() => markReady(t.id)} color={C.greenLight} textColor={C.white} style={{ marginTop: 10, width: "100%" }}>鉁� Mark Ready</Btn>
+                <Btn onClick={() => markReady(t.id)} color={C.greenLight} textColor={C.white} style={{ marginTop: 10, width: "100%" }}>✔️ Mark Ready</Btn>
               </div>
             ))}
           </div>
         )}
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <h2 style={{ color: C.gold, margin: 0, fontSize: 15 }}>馃摜 STOCK REQUESTS ({stockRequests.length})</h2>
+          <h2 style={{ color: C.gold, margin: 0, fontSize: 15 }}>📥 STOCK REQUESTS ({stockRequests.length})</h2>
           {stockRequests.length > 0 && (
             <button onClick={() => setRequestsCompact(v => !v)} style={{ background: requestsCompact ? C.gold : C.purple, color: requestsCompact ? C.purple : C.goldPale, border: `1px solid ${C.purpleLight}`, borderRadius: 8, padding: "6px 12px", fontWeight: 700, fontSize: 11, cursor: "pointer" }}>{requestsCompact ? "Full View" : "Compact View"}</button>
           )}
@@ -984,9 +984,9 @@ const KitchenView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
               <button key={req.id} onClick={() => applyStockRequest(req)} style={{ width: "100%", textAlign: "left", background: C.purple, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, border: `2px solid ${C.orange}`, cursor: "pointer" }}>
                 <div>
                   <div style={{ color: C.gold, fontWeight: 800, fontSize: 13 }}>{req.staff_name}</div>
-                  <div style={{ color: C.gray500, fontSize: 11 }}>{(req.items || []).length} item{(req.items || []).length !== 1 ? "s" : ""} 路 {new Date(req.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                  <div style={{ color: C.gray500, fontSize: 11 }}>{(req.items || []).length} item{(req.items || []).length !== 1 ? "s" : ""} - {new Date(req.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
                 </div>
-                <span style={{ color: C.greenLight, fontSize: 12, fontWeight: 700 }}>Tap to apply 鈫�</span>
+                <span style={{ color: C.greenLight, fontSize: 12, fontWeight: 700 }}>Tap to apply ></span>
               </button>
             ))}
           </div>
@@ -1004,17 +1004,17 @@ const KitchenView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
                     <span style={{ color: C.gold, fontWeight: 700, fontSize: 13 }}>{it.stock}</span>
                   </div>
                 ))}
-                <Btn onClick={() => applyStockRequest(req)} color={C.greenLight} textColor={C.white} style={{ marginTop: 10, width: "100%" }}>鉁� Mark Updated</Btn>
+                <Btn onClick={() => applyStockRequest(req)} color={C.greenLight} textColor={C.white} style={{ marginTop: 10, width: "100%" }}>✔️ Mark Updated</Btn>
               </div>
             ))}
           </div>
         )}
 
-        <h2 style={{ color: C.gold, margin: "24px 0 12px", fontSize: 15 }}>馃摝 STOCK</h2>
+        <h2 style={{ color: C.gold, margin: "24px 0 12px", fontSize: 15 }}>📦 STOCK</h2>
         <div style={{ color: C.goldPale, fontSize: 12, marginBottom: 8, fontWeight: 700 }}>Menu Items</div>
         {menu.map(item => (
           <div key={item.id} style={{ background: C.purple, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, border: `1px solid ${item.stock === 0 ? C.red : item.stock <= 3 ? C.orange : C.purpleLight}` }}>
-            <div><div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{item.name}</div><div style={{ color: stockColor(item.stock), fontSize: 11 }}>{item.stock === 0 ? "OUT" : item.stock <= 3 ? `鈿� ${item.stock} left` : `${item.stock} avail`}</div></div>
+            <div><div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{item.name}</div><div style={{ color: stockColor(item.stock), fontSize: 11 }}>{item.stock === 0 ? "OUT" : item.stock <= 3 ? `⚠ ${item.stock} left` : `${item.stock} avail`}</div></div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <button onClick={() => adjustStock("menu", item.id, -1)} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.purpleLight, color: C.gold, fontWeight: 900, cursor: "pointer" }}>-</button>
               <span style={{ color: stockColor(item.stock), fontWeight: 800, minWidth: 22, textAlign: "center" }}>{item.stock}</span>
@@ -1025,7 +1025,7 @@ const KitchenView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
         <div style={{ color: C.goldPale, fontSize: 12, margin: "14px 0 8px", fontWeight: 700 }}>Sides</div>
         {sides.map(side => (
           <div key={side.id} style={{ background: C.purple, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, border: `1px solid ${side.stock === 0 ? C.red : side.stock <= 3 ? C.orange : C.purpleLight}` }}>
-            <div><div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{side.name}</div><div style={{ color: stockColor(side.stock), fontSize: 11 }}>{side.stock === 0 ? "OUT OF STOCK" : side.stock <= 3 ? `鈿� ${side.stock} left` : `${side.stock} avail`}</div></div>
+            <div><div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{side.name}</div><div style={{ color: stockColor(side.stock), fontSize: 11 }}>{side.stock === 0 ? "OUT OF STOCK" : side.stock <= 3 ? `⚠ ${side.stock} left` : `${side.stock} avail`}</div></div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <button onClick={() => adjustStock("sides", side.id, -1)} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.purpleLight, color: C.gold, fontWeight: 900, cursor: "pointer" }}>-</button>
               <span style={{ color: stockColor(side.stock), fontWeight: 800, minWidth: 22, textAlign: "center" }}>{side.stock}</span>
@@ -1052,7 +1052,7 @@ const LineChefView = ({ tables, setTables, menu, setMenu, sides, setSides, user,
     const barDone = !hasDrinks || !!table.barReadyAt;
     setTables(prev => prev.map(t => t.id === tableId ? { ...t, kitchenReadyAt: nowTime(), status: barDone ? "bill" : t.status } : t));
     const label = table.isTakeaway ? `Takeaway ${table.takeawayNumber}` : `Table ${tableId}`;
-    addNotification(barDone ? `${label} is ready!` : `${label} food ready 鈥� waiting on bar`);
+    addNotification(barDone ? `${label} is ready!` : `${label} food ready — waiting on bar`);
     const items = foodItems.map(o => `${o.qty}x ${o.name}`).join(", ");
     supabase.from("shift_events").insert({
       staff_id: user.id, staff_name: user.name, role: "line_chef",
@@ -1064,14 +1064,14 @@ const LineChefView = ({ tables, setTables, menu, setMenu, sides, setSides, user,
     <div style={{ minHeight: "100vh", background: C.purpleDark }}>
       <TopBar user={user} />
       <div style={{ padding: 16 }}>
-        <h2 style={{ color: C.gold, margin: "0 0 14px", fontSize: 15 }}>馃嵆 ORDER QUEUE</h2>
+        <h2 style={{ color: C.gold, margin: "0 0 14px", fontSize: 15 }}>🍳 ORDER QUEUE</h2>
         {pending.length === 0
-          ? <div style={{ background: C.purple, borderRadius: 12, padding: 40, textAlign: "center" }}><div style={{ fontSize: 36 }}>鉁�</div><div style={{ color: C.goldPale, marginTop: 10 }}>All caught up!</div></div>
+          ? <div style={{ background: C.purple, borderRadius: 12, padding: 40, textAlign: "center" }}><div style={{ fontSize: 36 }}>✅</div><div style={{ color: C.goldPale, marginTop: 10 }}>All caught up!</div></div>
           : pending.map(t => (
             <div key={t.id} style={{ background: t.isTakeaway ? C.teal : C.purple, borderRadius: 12, padding: 16, border: `2px solid ${orderAgeColor(t.orderSentTs) || C.gold}`, marginBottom: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
                 <div>
-                  <div style={{ color: C.gold, fontWeight: 800, fontSize: 18 }}>{t.isTakeaway ? `馃ァ ${t.takeawayNumber}` : `Table ${t.id}`}</div>
+                  <div style={{ color: C.gold, fontWeight: 800, fontSize: 18 }}>{t.isTakeaway ? `🥡 ${t.takeawayNumber}` : `Table ${t.id}`}</div>
                   {t.isTakeaway && <div style={{ color: C.white, fontSize: 11 }}>{t.customerName}</div>}
                 </div>
                 <div style={{ textAlign: "right" }}>
@@ -1082,10 +1082,10 @@ const LineChefView = ({ tables, setTables, menu, setMenu, sides, setSides, user,
               {t.order.filter(o => !isDrink(o)).map((o, i) => (
                 <div key={i} style={{ marginBottom: 8 }}>
                   <div style={{ color: C.goldPale, fontSize: 14, fontWeight: 700 }}>{o.qty}x {o.name}</div>
-                  {o.sides && <div style={{ color: C.gray300, fontSize: 12, marginTop: 2 }}>鈫� {o.sides.map(s => s.name).join(", ")}</div>}
+                  {o.sides && <div style={{ color: C.gray300, fontSize: 12, marginTop: 2 }}>↳ {o.sides.map(s => s.name).join(", ")}</div>}
                 </div>
               ))}
-              <Btn onClick={() => markReady(t.id)} color={C.greenLight} textColor={C.white} style={{ marginTop: 10, width: "100%" }}>鉁� Mark Ready</Btn>
+              <Btn onClick={() => markReady(t.id)} color={C.greenLight} textColor={C.white} style={{ marginTop: 10, width: "100%" }}>✔️ Mark Ready</Btn>
             </div>
           ))}
       </div>
@@ -1105,7 +1105,7 @@ const BarView = ({ tables, setTables, menu, setMenu, sides, setSides, user, addN
     const kitchenDone = !hasFood || !!table.kitchenReadyAt;
     setTables(prev => prev.map(t => t.id === tableId ? { ...t, barReadyAt: nowTime(), status: kitchenDone ? "bill" : t.status } : t));
     const label = table.isTakeaway ? `Takeaway ${table.takeawayNumber}` : `Table ${tableId}`;
-    addNotification(kitchenDone ? `${label} is ready!` : `${label} drinks ready 鈥� waiting on kitchen`);
+    addNotification(kitchenDone ? `${label} is ready!` : `${label} drinks ready — waiting on kitchen`);
     const items = drinkItems.map(o => ({ name: o.name, qty: o.qty }));
     supabase.from("shift_events").insert({
       staff_id: user.id, staff_name: user.name, role: "bar",
@@ -1122,14 +1122,14 @@ const BarView = ({ tables, setTables, menu, setMenu, sides, setSides, user, addN
     <div style={{ minHeight: "100vh", background: C.purpleDark }}>
       <TopBar user={user} />
       <div style={{ padding: 16 }}>
-        <h2 style={{ color: C.gold, margin: "0 0 14px", fontSize: 15 }}>馃嵐 DRINKS QUEUE</h2>
+        <h2 style={{ color: C.gold, margin: "0 0 14px", fontSize: 15 }}>🍹 DRINKS QUEUE</h2>
         {pending.length === 0
-          ? <div style={{ background: C.purple, borderRadius: 12, padding: 40, textAlign: "center" }}><div style={{ fontSize: 36 }}>鉁�</div><div style={{ color: C.goldPale, marginTop: 10 }}>All caught up!</div></div>
+          ? <div style={{ background: C.purple, borderRadius: 12, padding: 40, textAlign: "center" }}><div style={{ fontSize: 36 }}>✅</div><div style={{ color: C.goldPale, marginTop: 10 }}>All caught up!</div></div>
           : pending.map(t => (
             <div key={t.id} style={{ background: t.isTakeaway ? C.teal : C.purple, borderRadius: 12, padding: 16, border: `2px solid ${orderAgeColor(t.orderSentTs) || C.gold}`, marginBottom: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
                 <div>
-                  <div style={{ color: C.gold, fontWeight: 800, fontSize: 18 }}>{t.isTakeaway ? `馃ァ ${t.takeawayNumber}` : `Table ${t.id}`}</div>
+                  <div style={{ color: C.gold, fontWeight: 800, fontSize: 18 }}>{t.isTakeaway ? `🥡 ${t.takeawayNumber}` : `Table ${t.id}`}</div>
                   {t.isTakeaway && <div style={{ color: C.white, fontSize: 11 }}>{t.customerName}</div>}
                 </div>
                 <div style={{ textAlign: "right" }}>
@@ -1142,14 +1142,14 @@ const BarView = ({ tables, setTables, menu, setMenu, sides, setSides, user, addN
                   <div style={{ color: C.goldPale, fontSize: 14, fontWeight: 700 }}>{o.qty}x {o.name}</div>
                 </div>
               ))}
-              <Btn onClick={() => markReady(t.id)} color={C.greenLight} textColor={C.white} style={{ marginTop: 10, width: "100%" }}>鉁� Mark Ready</Btn>
+              <Btn onClick={() => markReady(t.id)} color={C.greenLight} textColor={C.white} style={{ marginTop: 10, width: "100%" }}>✔️ Mark Ready</Btn>
             </div>
           ))}
 
-        <h2 style={{ color: C.gold, margin: "24px 0 12px", fontSize: 15 }}>馃摝 DRINKS STOCK</h2>
+        <h2 style={{ color: C.gold, margin: "24px 0 12px", fontSize: 15 }}>📦 DRINKS STOCK</h2>
         {drinkMenu.map(item => (
           <div key={item.id} style={{ background: C.purple, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, border: `1px solid ${item.stock === 0 ? C.red : item.stock <= 3 ? C.orange : C.purpleLight}` }}>
-            <div><div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{item.name}</div><div style={{ color: stockColor(item.stock), fontSize: 11 }}>{item.stock === 0 ? "OUT" : item.stock <= 3 ? `鈿� ${item.stock} left` : `${item.stock} avail`}</div></div>
+            <div><div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{item.name}</div><div style={{ color: stockColor(item.stock), fontSize: 11 }}>{item.stock === 0 ? "OUT" : item.stock <= 3 ? `⚠ ${item.stock} left` : `${item.stock} avail`}</div></div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <button onClick={() => setMenu(p => p.map(m => m.id === item.id ? { ...m, stock: Math.max(0, m.stock - 1) } : m))} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.purpleLight, color: C.gold, fontWeight: 900, cursor: "pointer" }}>-</button>
               <span style={{ color: stockColor(item.stock), fontWeight: 800, minWidth: 22, textAlign: "center" }}>{item.stock}</span>
@@ -1210,24 +1210,24 @@ const CashierView = ({ tables, setTables, user }) => {
   if (selTable) return (
     <div style={{ minHeight: "100vh", background: C.purpleDark }}>
       <div style={{ background: selTable.isTakeaway ? C.teal : C.purple, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10, position: "sticky", top: 0, zIndex: 100 }}>
-        <button onClick={() => setSelectedTable(null)} style={{ background: "none", border: "none", color: C.gold, fontSize: 22, cursor: "pointer" }}>鈫�</button>
+        <button onClick={() => setSelectedTable(null)} style={{ background: "none", border: "none", color: C.gold, fontSize: 22, cursor: "pointer" }}><</button>
         <div style={{ flex: 1 }}>
-          <div style={{ color: C.gold, fontWeight: 800, fontSize: 16 }}>{selTable.isTakeaway ? `馃ァ ${selTable.takeawayNumber}` : `Table ${selTable.id}`}</div>
-          <div style={{ color: C.goldPale, fontSize: 11 }}>{selTable.isTakeaway ? selTable.customerName : `${selTable.guests} guests`} 路 {selTable.openedAt}</div>
+          <div style={{ color: C.gold, fontWeight: 800, fontSize: 16 }}>{selTable.isTakeaway ? `🥡 ${selTable.takeawayNumber}` : `Table ${selTable.id}`}</div>
+          <div style={{ color: C.goldPale, fontSize: 11 }}>{selTable.isTakeaway ? selTable.customerName : `${selTable.guests} guests`} - {selTable.openedAt}</div>
         </div>
-        <div style={{ background: C.orange, color: C.white, fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 10 }}>鈴� Bill</div>
+        <div style={{ background: C.orange, color: C.white, fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 10 }}>⏳ Bill</div>
       </div>
       <div style={{ padding: 16 }}>
         <div style={{ background: C.purple, borderRadius: 12, padding: 20, border: `1px solid ${C.gold}`, marginBottom: 20 }}>
           <div style={{ color: C.gold, fontWeight: 800, textAlign: "center", fontSize: 15, marginBottom: 16, letterSpacing: 1 }}>AUTHORITY SYSTEMS</div>
-          {selTable.isTakeaway && <div style={{ color: C.teal, fontWeight: 700, textAlign: "center", marginBottom: 12, fontSize: 13 }}>馃ァ TAKEAWAY 鈥� {selTable.takeawayNumber}</div>}
+          {selTable.isTakeaway && <div style={{ color: C.teal, fontWeight: 700, textAlign: "center", marginBottom: 12, fontSize: 13 }}>🥡 TAKEAWAY — {selTable.takeawayNumber}</div>}
           {selTable.order.map((o, i) => (
             <div key={i} style={{ marginBottom: 12, paddingBottom: 12, borderBottom: `1px dotted ${C.purpleLight}` }}>
               <div style={{ display: "flex", justifyContent: "space-between", color: C.goldPale, fontSize: 14 }}>
                 <span style={{ fontWeight: 700 }}>{o.qty}x {o.name}</span>
                 <span style={{ color: C.gold, fontWeight: 700 }}>{fmt(o.price * o.qty)}</span>
               </div>
-              {o.sides && <div style={{ color: C.gray500, fontSize: 11, marginTop: 3 }}>鈫� {o.sides.map(s => s.name).join(", ")}</div>}
+              {o.sides && <div style={{ color: C.gray500, fontSize: 11, marginTop: 3 }}>↳ {o.sides.map(s => s.name).join(", ")}</div>}
             </div>
           ))}
           <div style={{ display: "flex", justifyContent: "space-between", color: C.gold, fontWeight: 900, fontSize: 22, paddingTop: 8 }}>
@@ -1237,13 +1237,13 @@ const CashierView = ({ tables, setTables, user }) => {
         <div style={{ color: C.goldPale, fontSize: 13, fontWeight: 700, marginBottom: 10, textAlign: "center" }}>Select payment method</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <button onClick={() => processPay(selTable.id, "cash")} style={{ background: C.greenLight, color: C.white, border: "none", borderRadius: 12, padding: "16px", fontWeight: 700, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
-            <span style={{ fontSize: 22 }}>馃挼</span> Cash
+            <span style={{ fontSize: 22 }}>💵</span> Cash
           </button>
           <button onClick={() => processPay(selTable.id, "card")} style={{ background: C.gold, color: C.purple, border: "none", borderRadius: 12, padding: "16px", fontWeight: 700, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
-            <span style={{ fontSize: 22 }}>馃挸</span> Card / Tap
+            <span style={{ fontSize: 22 }}>💳</span> Card / Tap
           </button>
           <button onClick={() => processPay(selTable.id, "mobile")} style={{ background: C.blue, color: C.white, border: "none", borderRadius: 12, padding: "16px", fontWeight: 700, fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
-            <span style={{ fontSize: 22 }}>馃摫</span> Mobile Pay
+            <span style={{ fontSize: 22 }}>📱</span> Mobile Pay
           </button>
         </div>
       </div>
@@ -1254,11 +1254,11 @@ const CashierView = ({ tables, setTables, user }) => {
     <div style={{ minHeight: "100vh", background: C.purpleDark }}>
       <TopBar user={user} />
       <div style={{ padding: 16 }}>
-        <h2 style={{ color: C.gold, margin: "0 0 6px", fontSize: 15 }}>馃挸 PENDING BILLS</h2>
+        <h2 style={{ color: C.gold, margin: "0 0 6px", fontSize: 15 }}>💳 PENDING BILLS</h2>
         <p style={{ color: C.goldPale, fontSize: 12, marginBottom: 16 }}>Tap a table to view the order and process payment</p>
         {billTables.length === 0 ? (
           <div style={{ background: C.purple, borderRadius: 12, padding: 40, textAlign: "center" }}>
-            <div style={{ fontSize: 36 }}>馃挙</div>
+            <div style={{ fontSize: 36 }}>💤</div>
             <div style={{ color: C.goldPale, marginTop: 10 }}>No pending bills right now</div>
           </div>
         ) : (
@@ -1266,12 +1266,12 @@ const CashierView = ({ tables, setTables, user }) => {
             {billTables.map(t => (
               <button key={t.id} onClick={() => setSelectedTable(t.id)} style={{ background: t.isTakeaway ? C.teal : C.purple, borderRadius: 12, padding: "16px 18px", border: `2px solid ${C.orange}`, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", textAlign: "left" }}>
                 <div>
-                  <div style={{ color: C.gold, fontWeight: 800, fontSize: 18 }}>{t.isTakeaway ? `馃ァ ${t.takeawayNumber}` : `Table ${t.id}`}</div>
-                  <div style={{ color: C.goldPale, fontSize: 12, marginTop: 3 }}>{t.isTakeaway ? t.customerName : `${t.guests} guests`} 路 {t.order.length} item{t.order.length !== 1 ? "s" : ""}</div>
+                  <div style={{ color: C.gold, fontWeight: 800, fontSize: 18 }}>{t.isTakeaway ? `🥡 ${t.takeawayNumber}` : `Table ${t.id}`}</div>
+                  <div style={{ color: C.goldPale, fontSize: 12, marginTop: 3 }}>{t.isTakeaway ? t.customerName : `${t.guests} guests`} - {t.order.length} item{t.order.length !== 1 ? "s" : ""}</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <div style={{ color: C.gold, fontWeight: 900, fontSize: 20 }}>{fmt(orderTotal(t.order))}</div>
-                  <div style={{ color: C.orange, fontSize: 11, fontWeight: 700, marginTop: 2 }}>Tap to pay 鈫�</div>
+                  <div style={{ color: C.orange, fontSize: 11, fontWeight: 700, marginTop: 2 }}>Tap to pay ></div>
                 </div>
               </button>
             ))}
@@ -1339,12 +1339,12 @@ const StockView = ({ menu, sides, user, addNotification }) => {
     <div style={{ minHeight: "100vh", background: C.purpleDark }}>
       <TopBar user={user} />
       <div style={{ padding: 16, paddingBottom: 90 }}>
-        <h2 style={{ color: C.gold, margin: "0 0 4px", fontSize: 15 }}>馃摝 STOCK MANAGEMENT</h2>
-        <p style={{ color: C.goldPale, fontSize: 12, marginBottom: 16 }}>Adjust counts, then send 鈥� nothing changes live until the Head Chef approves</p>
+        <h2 style={{ color: C.gold, margin: "0 0 4px", fontSize: 15 }}>📦 STOCK MANAGEMENT</h2>
+        <p style={{ color: C.goldPale, fontSize: 12, marginBottom: 16 }}>Adjust counts, then send — nothing changes live until the Head Chef approves</p>
         <div style={{ color: C.goldPale, fontSize: 12, marginBottom: 8, fontWeight: 700 }}>Menu Items</div>
         {draftMenu.map(item => (
           <div key={item.id} style={{ background: C.purple, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, border: `1px solid ${item.stock === 0 ? C.red : item.stock <= 3 ? C.orange : C.purpleLight}` }}>
-            <div><div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{item.name}</div><div style={{ color: stockColor(item.stock), fontSize: 11 }}>{item.stock === 0 ? "OUT" : item.stock <= 3 ? `鈿� ${item.stock} left` : `${item.stock} avail`}</div></div>
+            <div><div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{item.name}</div><div style={{ color: stockColor(item.stock), fontSize: 11 }}>{item.stock === 0 ? "OUT" : item.stock <= 3 ? `⚠ ${item.stock} left` : `${item.stock} avail`}</div></div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <button onClick={() => adjustDraft("menu", item.id, -1)} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.purpleLight, color: C.gold, fontWeight: 900, cursor: "pointer" }}>-</button>
               <span style={{ color: stockColor(item.stock), fontWeight: 800, minWidth: 22, textAlign: "center" }}>{item.stock}</span>
@@ -1355,7 +1355,7 @@ const StockView = ({ menu, sides, user, addNotification }) => {
         <div style={{ color: C.goldPale, fontSize: 12, margin: "14px 0 8px", fontWeight: 700 }}>Sides</div>
         {draftSides.map(side => (
           <div key={side.id} style={{ background: C.purple, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, border: `1px solid ${side.stock === 0 ? C.red : side.stock <= 3 ? C.orange : C.purpleLight}` }}>
-            <div><div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{side.name}</div><div style={{ color: stockColor(side.stock), fontSize: 11 }}>{side.stock === 0 ? "OUT OF STOCK" : side.stock <= 3 ? `鈿� ${side.stock} left` : `${side.stock} avail`}</div></div>
+            <div><div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{side.name}</div><div style={{ color: stockColor(side.stock), fontSize: 11 }}>{side.stock === 0 ? "OUT OF STOCK" : side.stock <= 3 ? `⚠ ${side.stock} left` : `${side.stock} avail`}</div></div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <button onClick={() => adjustDraft("sides", side.id, -1)} style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: C.purpleLight, color: C.gold, fontWeight: 900, cursor: "pointer" }}>-</button>
               <span style={{ color: stockColor(side.stock), fontWeight: 800, minWidth: 22, textAlign: "center" }}>{side.stock}</span>
@@ -1365,7 +1365,7 @@ const StockView = ({ menu, sides, user, addNotification }) => {
         ))}
       </div>
       <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, maxWidth: 480, margin: "0 auto", background: C.purple, borderTop: `2px solid ${C.gold}`, padding: 14 }}>
-        <Btn onClick={sendUpdate} disabled={sending} style={{ width: "100%" }}>{sending ? "Sending..." : "馃摚 Send to Head Chef"}</Btn>
+        <Btn onClick={sendUpdate} disabled={sending} style={{ width: "100%" }}>{sending ? "Sending..." : "📣 Send to Head Chef"}</Btn>
       </div>
     </div>
   );
@@ -1404,7 +1404,7 @@ const MenuItemModal = ({ item, onSave, onDelete, onCancel }) => {
             <button key={c} onClick={() => setCategory(c)} style={{ padding: "8px 2px", borderRadius: 8, border: `2px solid ${category === c ? C.gold : C.purpleLight}`, background: category === c ? C.gold : "transparent", color: category === c ? C.purple : C.goldPale, fontWeight: 700, fontSize: 10, cursor: "pointer" }}>{c}</button>
           ))}
         </div>
-        <div style={{ color: C.goldPale, fontSize: 12, marginBottom: 6 }}>Group (optional 鈥� e.g. "Wine", "Burgers", "Pizza")</div>
+        <div style={{ color: C.goldPale, fontSize: 12, marginBottom: 6 }}>Group (optional — e.g. "Wine", "Burgers", "Pizza")</div>
         <input value={subCategory} onChange={e => setSubCategory(e.target.value)} placeholder="e.g. Wine, Burgers, Pizza" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.purpleLight}`, background: C.purpleDark, color: C.goldPale, fontSize: 14, marginBottom: 14, boxSizing: "border-box" }} />
         <div style={{ color: C.goldPale, fontSize: 12, marginBottom: 6 }}>Price ($)</div>
         <input value={price} onChange={e => setPrice(e.target.value)} placeholder="0.00" inputMode="decimal" style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.purpleLight}`, background: C.purpleDark, color: C.goldPale, fontSize: 14, marginBottom: 14, boxSizing: "border-box" }} />
@@ -1415,7 +1415,7 @@ const MenuItemModal = ({ item, onSave, onDelete, onCancel }) => {
           </>
         )}
         <button onClick={() => setHasSides(v => !v)} style={{ display: "flex", alignItems: "center", gap: 10, background: "none", border: "none", cursor: "pointer", marginBottom: hasSides ? 10 : 18, padding: 0 }}>
-          <div style={{ width: 20, height: 20, borderRadius: 5, border: `2px solid ${C.gold}`, background: hasSides ? C.gold : "transparent", display: "flex", alignItems: "center", justifyContent: "center", color: C.purple, fontWeight: 900, fontSize: 13 }}>{hasSides ? "鉁�" : ""}</div>
+          <div style={{ width: 20, height: 20, borderRadius: 5, border: `2px solid ${C.gold}`, background: hasSides ? C.gold : "transparent", display: "flex", alignItems: "center", justifyContent: "center", color: C.purple, fontWeight: 900, fontSize: 13 }}>{hasSides ? "✔️" : ""}</div>
           <span style={{ color: C.goldPale, fontSize: 13 }}>Requires side dishes</span>
         </button>
         {hasSides && (
@@ -1572,13 +1572,13 @@ const FloorPlan = ({ tables, setTables, canReserve, canTransfer = false, addNoti
               + Table
             </button>
             <button onClick={() => setShowTakeaway(true)} style={{ background: C.teal, color: C.white, border: "none", borderRadius: 10, padding: "6px 12px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
-              馃ァ Takeaway
+              🥡 Takeaway
             </button>
           </div>
         )}
       </div>
       <div style={{ background: "#1e0d1a", borderRadius: 16, padding: "16px 12px", border: `2px solid ${C.purpleLight}`, marginBottom: 16 }}>
-        <div style={{ color: C.gray500, fontSize: 9, letterSpacing: 1, marginBottom: 12, textTransform: "uppercase" }}>鈫� Window 路 Dining Floor 路 Kitchen 鈫�</div>
+        <div style={{ color: C.gray500, fontSize: 9, letterSpacing: 1, marginBottom: 12, textTransform: "uppercase" }}>< Window - Dining Floor - Kitchen ></div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
           <div style={{ display: "flex", gap: 10 }}>{[1,2,3].map(id => <TableBtn key={id} id={id} />)}</div>
           <div style={{ display: "flex", gap: 10 }}>{[4,5,6].map(id => <TableBtn key={id} id={id} />)}</div>
@@ -1589,17 +1589,17 @@ const FloorPlan = ({ tables, setTables, canReserve, canTransfer = false, addNoti
       </div>
       {takeawayOrders.length > 0 && (
         <div style={{ marginBottom: 16 }}>
-          <h3 style={{ color: C.teal, margin: "0 0 10px", fontSize: 13 }}>馃ァ ACTIVE TAKEAWAYS</h3>
+          <h3 style={{ color: C.teal, margin: "0 0 10px", fontSize: 13 }}>🥡 ACTIVE TAKEAWAYS</h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {takeawayOrders.map(t => (
               <button key={t.id} onClick={() => setOrderingTable(t)} style={{ width: "100%", textAlign: "left", background: C.teal, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", border: "none", cursor: "pointer" }}>
                 <div>
                   <div style={{ color: C.gold, fontWeight: 800 }}>{t.takeawayNumber}</div>
-                  <div style={{ color: C.white, fontSize: 11 }}>{t.customerName} 路 {t.openedAt}</div>
+                  <div style={{ color: C.white, fontSize: 11 }}>{t.customerName} - {t.openedAt}</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <div style={{ color: C.gold, fontWeight: 700 }}>{fmt(orderTotal(t.order))}</div>
-                  <div style={{ color: C.white, fontSize: 11 }}>{t.status === "bill" ? "鈴� Bill" : `${t.order.length} items`}</div>
+                  <div style={{ color: C.white, fontSize: 11 }}>{t.status === "bill" ? "⏳ Bill" : `${t.order.length} items`}</div>
                 </div>
               </button>
             ))}
@@ -1608,17 +1608,17 @@ const FloorPlan = ({ tables, setTables, canReserve, canTransfer = false, addNoti
       )}
       {extraTables.length > 0 && (
         <div style={{ marginBottom: 16 }}>
-          <h3 style={{ color: C.goldPale, margin: "0 0 10px", fontSize: 13 }}>馃嵔锔� OTHER TABLES</h3>
+          <h3 style={{ color: C.goldPale, margin: "0 0 10px", fontSize: 13 }}>🍽️ OTHER TABLES</h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {extraTables.map(t => (
               <button key={t.id} onClick={() => setOrderingTable(t)} style={{ width: "100%", textAlign: "left", background: C.purpleLight, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", border: "none", cursor: "pointer" }}>
                 <div>
                   <div style={{ color: C.gold, fontWeight: 800 }}>Table {t.id}</div>
-                  <div style={{ color: C.goldPale, fontSize: 11 }}>{t.guests} guests 路 {t.openedAt}</div>
+                  <div style={{ color: C.goldPale, fontSize: 11 }}>{t.guests} guests - {t.openedAt}</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <div style={{ color: C.gold, fontWeight: 700 }}>{fmt(orderTotal(t.order))}</div>
-                  <div style={{ color: C.goldPale, fontSize: 11 }}>{t.status === "bill" ? "鈴� Bill" : `${t.order.length} items`}</div>
+                  <div style={{ color: C.goldPale, fontSize: 11 }}>{t.status === "bill" ? "⏳ Bill" : `${t.order.length} items`}</div>
                 </div>
               </button>
             ))}
@@ -1633,8 +1633,8 @@ const FloorPlan = ({ tables, setTables, canReserve, canTransfer = false, addNoti
           </div>
           {selTable.status === "free" && (
             <div>
-              <div style={{ color: C.goldPale, fontSize: 13, marginBottom: 12 }}>Available 鈥� no current booking</div>
-              {canReserve && <Btn onClick={() => setReserveModal(selTable.id)} style={{ width: "100%" }}>馃敄 Reserve This Table</Btn>}
+              <div style={{ color: C.goldPale, fontSize: 13, marginBottom: 12 }}>Available — no current booking</div>
+              {canReserve && <Btn onClick={() => setReserveModal(selTable.id)} style={{ width: "100%" }}>🔖 Reserve This Table</Btn>}
             </div>
           )}
           {selTable.status === "reserved" && selTable.reservation && (
@@ -1663,7 +1663,7 @@ const FloorPlan = ({ tables, setTables, canReserve, canTransfer = false, addNoti
                   </div>
                 </>
               )}
-              {canTransfer && <Btn onClick={() => setTransferTableId(selTable.id)} color={C.purpleLight} textColor={C.goldPale} style={{ width: "100%", marginTop: 12 }}>鈬� Transfer to Another Staff</Btn>}
+              {canTransfer && <Btn onClick={() => setTransferTableId(selTable.id)} color={C.purpleLight} textColor={C.goldPale} style={{ width: "100%", marginTop: 12 }}>⇄ Transfer to Another Staff</Btn>}
             </div>
           )}
           {selTable.status === "bill" && (
@@ -1671,7 +1671,7 @@ const FloorPlan = ({ tables, setTables, canReserve, canTransfer = false, addNoti
               <div style={{ color: C.goldPale, fontSize: 13, marginBottom: 6 }}>Awaiting payment</div>
               <div style={{ color: C.gold, fontWeight: 900, fontSize: 20 }}>{fmt(orderTotal(selTable.order))}</div>
               <div style={{ color: C.goldPale, fontSize: 13, margin: "10px 0" }}>Waiter: <strong style={{ color: C.gold }}>{STAFF.find(s => s.id === selTable.waiterId)?.name || "Unassigned"}</strong></div>
-              {canTransfer && <Btn onClick={() => setTransferTableId(selTable.id)} color={C.purpleLight} textColor={C.goldPale} style={{ width: "100%" }}>鈬� Transfer to Another Staff</Btn>}
+              {canTransfer && <Btn onClick={() => setTransferTableId(selTable.id)} color={C.purpleLight} textColor={C.goldPale} style={{ width: "100%" }}>⇄ Transfer to Another Staff</Btn>}
             </div>
           )}
         </div>
@@ -1691,7 +1691,7 @@ const FloorPlan = ({ tables, setTables, canReserve, canTransfer = false, addNoti
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <Btn onClick={() => setReserveModal(null)} color={C.purpleLight} textColor={C.goldPale} style={{ flex: 1 }}>Cancel</Btn>
-              <Btn onClick={doReserve} disabled={!rName || !rTime} style={{ flex: 1 }}>Confirm 鈫�</Btn>
+              <Btn onClick={doReserve} disabled={!rName || !rTime} style={{ flex: 1 }}>Confirm ></Btn>
             </div>
           </div>
         </div>
@@ -1704,7 +1704,7 @@ const ReceptionistView = ({ tables, setTables, menu, sides, setMenu, setSides, u
   <div style={{ minHeight: "100vh", background: C.purpleDark }}>
     <TopBar user={user} />
     <div style={{ padding: 16 }}>
-      <h2 style={{ color: C.gold, margin: "0 0 14px", fontSize: 15, letterSpacing: 1 }}>馃泿锔� FLOOR PLAN</h2>
+      <h2 style={{ color: C.gold, margin: "0 0 14px", fontSize: 15, letterSpacing: 1 }}>🛎️ FLOOR PLAN</h2>
       <FloorPlan tables={tables} setTables={setTables} canReserve={true} addNotification={addNotification} menu={menu} sides={sides} setMenu={setMenu} setSides={setSides} user={user} />
     </div>
   </div>
@@ -1808,12 +1808,12 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
     const time = new Date(e.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     const d = e.details || {};
     const itemsStr = (val) => Array.isArray(val) ? val.map(it => `${it.qty != null ? it.qty + "x " : ""}${it.name}${it.stock != null ? ` (${it.stock})` : ""}`).join(", ") : val;
-    if (e.event_type === "table_served") return `${time} 鈥� ${d.label}: ${d.guests} guest${d.guests === 1 ? "" : "s"}${d.duration != null ? `, ${d.duration} min` : ""}, ${fmt(d.amount || 0)}`;
-    if (e.event_type === "payment_processed") return `${time} 鈥� Processed ${d.label}: ${fmt(d.amount || 0)}${d.method ? ` (${d.method})` : ""}`;
-    if (e.event_type === "stock_update") return `${time} 鈥� ${d.message}`;
-    if (e.event_type === "kitchen_stock_update") return `${time} 鈥� Kitchen stock: ${d.name} now ${d.stock}`;
-    if (e.event_type === "order_ready") return `${time} 鈥� ${d.label} ready: ${itemsStr(d.items)}`;
-    return `${time} 鈥� ${e.event_type}`;
+    if (e.event_type === "table_served") return `${time} — ${d.label}: ${d.guests} guest${d.guests === 1 ? "" : "s"}${d.duration != null ? `, ${d.duration} min` : ""}, ${fmt(d.amount || 0)}`;
+    if (e.event_type === "payment_processed") return `${time} — Processed ${d.label}: ${fmt(d.amount || 0)}${d.method ? ` (${d.method})` : ""}`;
+    if (e.event_type === "stock_update") return `${time} — ${d.message}`;
+    if (e.event_type === "kitchen_stock_update") return `${time} — Kitchen stock: ${d.name} now ${d.stock}`;
+    if (e.event_type === "order_ready") return `${time} — ${d.label} ready: ${itemsStr(d.items)}`;
+    return `${time} — ${e.event_type}`;
   };
 
   useEffect(() => {
@@ -1932,7 +1932,7 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
               <p style={{ color: C.goldPale, fontSize: 12, margin: 0 }}>Tap a table to open or manage</p>
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={() => setAddingTable(true)} style={{ background: C.purpleLight, color: C.gold, border: `1px solid ${C.gold}`, borderRadius: 10, padding: "6px 12px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>+ Table</button>
-                <button onClick={() => setShowTakeaway(true)} style={{ background: C.teal, color: C.white, border: "none", borderRadius: 10, padding: "6px 12px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>馃ァ Takeaway</button>
+                <button onClick={() => setShowTakeaway(true)} style={{ background: C.teal, color: C.white, border: "none", borderRadius: 10, padding: "6px 12px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>🥡 Takeaway</button>
               </div>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(130px,1fr))", gap: 10, marginBottom: 16 }}>
@@ -1944,10 +1944,10 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
                 return (
                   <div key={t.id} onClick={() => { if (free || reserved) setOpeningTable(t.id); else if (active) { setActiveTable(tables.find(x => x.id === t.id)); setShowOrder(true); } }} style={{ background: bg, border: `2px solid ${active ? C.gold : (free || reserved) ? C.purpleLight : "transparent"}`, borderRadius: 12, padding: "14px 10px", cursor: "pointer", textAlign: "left", position: "relative" }}>
                     <div style={{ color: C.gold, fontWeight: 800, fontSize: 18 }}>T{t.id}</div>
-                    <div style={{ color: C.goldPale, fontSize: 11, marginTop: 3 }}>{free ? "Free" : reserved ? `馃敄 ${t.reservation?.name}` : t.status === "bill" ? "鈴� Bill" : `${t.guests} guests`}</div>
+                    <div style={{ color: C.goldPale, fontSize: 11, marginTop: 3 }}>{free ? "Free" : reserved ? `🔖 ${t.reservation?.name}` : t.status === "bill" ? "⏳ Bill" : `${t.guests} guests`}</div>
                     {active && t.order.length > 0 && <div style={{ color: C.goldLight, fontSize: 11, marginTop: 3 }}>{fmt(orderTotal(t.order))}</div>}
                     {active && (
-                      <button onClick={(e) => { e.stopPropagation(); setTransferTableId(t.id); }} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.35)", border: "none", borderRadius: 6, color: C.gold, fontSize: 13, padding: "3px 6px", cursor: "pointer" }} title="Transfer to another staff">鈬�</button>
+                      <button onClick={(e) => { e.stopPropagation(); setTransferTableId(t.id); }} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.35)", border: "none", borderRadius: 6, color: C.gold, fontSize: 13, padding: "3px 6px", cursor: "pointer" }} title="Transfer to another staff">⇄</button>
                     )}
                   </div>
                 );
@@ -1955,17 +1955,17 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
             </div>
             {takeawayOrders.length > 0 && (
               <>
-                <h3 style={{ color: C.teal, margin: "0 0 10px", fontSize: 13 }}>馃ァ ACTIVE TAKEAWAYS</h3>
+                <h3 style={{ color: C.teal, margin: "0 0 10px", fontSize: 13 }}>🥡 ACTIVE TAKEAWAYS</h3>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {takeawayOrders.map(t => (
                     <button key={t.id} onClick={() => { setActiveTable(t); setShowOrder(true); }} style={{ background: C.teal, borderRadius: 12, padding: "12px 14px", border: `2px solid ${C.gold}`, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", textAlign: "left" }}>
                       <div>
                         <div style={{ color: C.gold, fontWeight: 800 }}>{t.takeawayNumber}</div>
-                        <div style={{ color: C.white, fontSize: 11 }}>{t.customerName} 路 {t.openedAt}</div>
+                        <div style={{ color: C.white, fontSize: 11 }}>{t.customerName} - {t.openedAt}</div>
                       </div>
                       <div style={{ textAlign: "right" }}>
                         <div style={{ color: C.gold, fontWeight: 700 }}>{fmt(orderTotal(t.order))}</div>
-                        <div style={{ color: C.white, fontSize: 11 }}>{t.status === "bill" ? "鈴� Bill" : `${t.order.length} items`}</div>
+                        <div style={{ color: C.white, fontSize: 11 }}>{t.status === "bill" ? "⏳ Bill" : `${t.order.length} items`}</div>
                       </div>
                     </button>
                   ))}
@@ -1976,7 +1976,7 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
         )}
         {tab === "staff" && (
           <div>
-            <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13, marginBottom: 10 }}>馃煝 ON SHIFT NOW</div>
+            <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13, marginBottom: 10 }}>🟢 ON SHIFT NOW</div>
             {onShift.length === 0 ? (
               <div style={{ color: C.gray500, fontSize: 12, marginBottom: 18 }}>No one is currently clocked in</div>
             ) : (
@@ -2023,7 +2023,7 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
             <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13, margin: "16px 0 10px" }}>Sides</div>
             {sides.map(side => (
               <div key={side.id} style={{ background: C.purple, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, border: `1px solid ${side.stock === 0 ? C.red : side.stock <= 3 ? C.orange : C.purpleLight}` }}>
-                <div><div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{side.name}</div><div style={{ color: stockColor(side.stock), fontSize: 11 }}>{side.stock === 0 ? "OUT" : side.stock <= 3 ? `鈿� ${side.stock} left` : `${side.stock} avail`}</div></div>
+                <div><div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{side.name}</div><div style={{ color: stockColor(side.stock), fontSize: 11 }}>{side.stock === 0 ? "OUT" : side.stock <= 3 ? `⚠ ${side.stock} left` : `${side.stock} avail`}</div></div>
                 <span style={{ color: stockColor(side.stock), fontWeight: 800 }}>{side.stock}</span>
               </div>
             ))}
@@ -2039,9 +2039,9 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
               <button key={item.id} onClick={() => setEditingItem(item)} style={{ width: "100%", textAlign: "left", background: C.purple, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, border: `1px solid ${C.purpleLight}`, cursor: "pointer" }}>
                 <div>
                   <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{item.name}</div>
-                  <div style={{ color: C.gray500, fontSize: 11 }}>{item.category}{item.subCategory ? ` 路 ${item.subCategory}` : ""} 路 {fmt(item.price)}{item.hasSides ? ` 路 +${item.sidesRequired} sides` : ""}</div>
+                  <div style={{ color: C.gray500, fontSize: 11 }}>{item.category}{item.subCategory ? ` - ${item.subCategory}` : ""} - {fmt(item.price)}{item.hasSides ? ` - +${item.sidesRequired} sides` : ""}</div>
                 </div>
-                <span style={{ color: C.gold, fontSize: 16 }}>鉁�</span>
+                <span style={{ color: C.gold, fontSize: 16 }}>✏️</span>
               </button>
             ))}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "18px 0 10px" }}>
@@ -2051,7 +2051,7 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
             {sides.map(side => (
               <button key={side.id} onClick={() => setEditingSide(side)} style={{ width: "100%", textAlign: "left", background: C.purple, borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, border: `1px solid ${C.purpleLight}`, cursor: "pointer" }}>
                 <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13 }}>{side.name}</div>
-                <span style={{ color: C.gold, fontSize: 16 }}>鉁�</span>
+                <span style={{ color: C.gold, fontSize: 16 }}>✏️</span>
               </button>
             ))}
           </div>
@@ -2073,7 +2073,7 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
                 <div style={{ color: C.goldPale, fontSize: 11 }}>Orders Closed</div>
               </div>
             </div>
-            <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13, marginBottom: 10 }}>馃敟 TOP SELLING ITEMS</div>
+            <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13, marginBottom: 10 }}>🔥 TOP SELLING ITEMS</div>
             {topItems.length === 0 ? (
               <div style={{ color: C.gray500, fontSize: 12, marginBottom: 20 }}>No sales recorded in this period yet</div>
             ) : (
@@ -2086,7 +2086,7 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
                 ))}
               </div>
             )}
-            <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13, marginBottom: 10 }}>馃挵 REVENUE BY WAITER</div>
+            <div style={{ color: C.goldPale, fontWeight: 700, fontSize: 13, marginBottom: 10 }}>💰 REVENUE BY WAITER</div>
             {topWaiters.length === 0 ? (
               <div style={{ color: C.gray500, fontSize: 12 }}>No waiter sales in this period yet</div>
             ) : (
@@ -2113,13 +2113,13 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
                   <div style={{ color: C.gray500, fontSize: 11, textTransform: "uppercase" }}>{s.role}</div>
                 </div>
                 <div style={{ color: C.gray300, fontSize: 11, marginBottom: 6 }}>
-                  {new Date(s.clock_in).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })} 鈫� {new Date(s.clock_out).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  {new Date(s.clock_in).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })} > {new Date(s.clock_out).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 </div>
                 <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
                   <div style={{ color: C.gold, fontSize: 12, fontWeight: 700 }}>{s.tables_served || 0} tables</div>
                   <div style={{ color: C.greenLight, fontSize: 12, fontWeight: 700 }}>{fmt(s.revenue || 0)}</div>
                   {s.role === "stock" && <div style={{ color: C.teal, fontSize: 12, fontWeight: 700 }}>{s.stock_updates || 0} stock updates</div>}
-                  <div style={{ color: C.gray500, fontSize: 11, marginLeft: "auto" }}>Tap for details 鈫�</div>
+                  <div style={{ color: C.gray500, fontSize: 11, marginLeft: "auto" }}>Tap for details ></div>
                 </div>
               </button>
             ))}
@@ -2153,7 +2153,7 @@ const ManagerView = ({ tables, setTables, menu, setMenu, sides, setSides, user, 
                 <div style={{ color: C.gold, fontWeight: 800, fontSize: 18 }}>{selectedShift.staff_name}</div>
                 <div style={{ color: C.goldPale, fontSize: 12, textTransform: "uppercase", letterSpacing: 1 }}>{selectedShift.role}</div>
               </div>
-              <button onClick={() => setSelectedShift(null)} style={{ background: "none", border: "none", color: C.gold, fontSize: 22, cursor: "pointer" }}>鉁�</button>
+              <button onClick={() => setSelectedShift(null)} style={{ background: "none", border: "none", color: C.gold, fontSize: 22, cursor: "pointer" }}>X</button>
             </div>
             <div style={{ color: C.gray300, fontSize: 12, marginBottom: 4 }}>
               Clocked in: {new Date(selectedShift.clock_in).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
@@ -2397,4 +2397,4 @@ export default function App() {
       <button onClick={handleClockOut} style={{ position: "fixed", bottom: 16, right: 16, zIndex: 500, background: C.purple, border: `2px solid ${C.gold}`, borderRadius: 50, color: C.gold, fontWeight: 700, fontSize: 11, cursor: "pointer", padding: "7px 13px", boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}>Clock Out</button>
     </div>
   );
-  }
+}
