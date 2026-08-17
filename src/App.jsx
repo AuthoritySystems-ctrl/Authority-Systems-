@@ -202,7 +202,7 @@ const PinLogin = ({ onLogin }) => {
         </div>
         {hasBiometric && (
           <Btn onClick={useBiometric} disabled={bioBusy} color={C.purpleLight} textColor={C.goldPale} style={{ width: "100%", marginBottom: 8 }}>
-            {bioBusy ? "Checking fingerprint..." : "👆 Use Fingerprint"}
+            {bioBusy ? "Checking fingerprint..." : "Use Fingerprint"}
           </Btn>
         )}
         {error && <p style={{ color: C.redLight, textAlign: "center", fontSize: 12 }}>{error}</p>}
@@ -258,7 +258,7 @@ const ClockInScreen = ({ staff, onClockIn, onCancel }) => {
         <Btn onClick={onClockIn} style={{ width: "100%", padding: "16px" }}>🕐 Clock In</Btn>
         {supported && bioStatus !== "done" && (
           <button onClick={enableBiometric} disabled={bioStatus === "working"} style={{ background: "none", border: `1px solid ${C.purpleLight}`, color: C.goldPale, fontSize: 12, marginTop: 14, padding: "10px 12px", borderRadius: 8, cursor: "pointer", width: "100%" }}>
-            {bioStatus === "working" ? "Follow the prompt..." : bioStatus === "error" ? "Try Fingerprint Again" : "👆 Enable Fingerprint Login on This Device"}
+            {bioStatus === "working" ? "Follow the prompt..." : bioStatus === "error" ? "Try Fingerprint Again" : "Enable Fingerprint Login on This Device"}
           </button>
         )}
         {bioStatus === "done" && <p style={{ color: C.greenLight, fontSize: 12, marginTop: 12 }}>✔️ Fingerprint enabled for next time</p>}
@@ -526,7 +526,7 @@ const TransferModal = ({ table, managerPin, onConfirm, onCancel }) => {
             <p style={{ color: C.goldPale, fontSize: 12, marginBottom: 16 }}>Confirm transferring {label} to <strong style={{ color: C.gold }}>{STAFF.find(s => s.id === newWaiterId)?.name}</strong></p>
             {hasBiometric && (
               <Btn onClick={confirmBiometric} disabled={bioBusy} color={C.purpleLight} textColor={C.goldPale} style={{ width: "100%", marginBottom: 12 }}>
-                {bioBusy ? "Checking fingerprint..." : "👆 Confirm with Fingerprint"}
+                {bioBusy ? "Checking fingerprint..." : "Confirm with Fingerprint"}
               </Btn>
             )}
             <p style={{ color: C.goldPale, fontSize: 12, marginBottom: 8 }}>Or enter your manager PIN</p>
