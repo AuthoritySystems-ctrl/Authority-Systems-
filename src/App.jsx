@@ -605,7 +605,7 @@ const OrderPanel = ({ activeTable, setActiveTable, tables, setTables, menu, side
     <div style={{ minHeight: "100vh", background: C.purpleDark, display: "flex", flexDirection: "column" }}>
       {sidesPicker && <SidesPicker item={sidesPicker} sides={sides} onConfirm={confirmSides} onCancel={() => setSidesPicker(null)} />}
       <div style={{ background: activeTable.isTakeaway ? C.teal : C.purple, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10, position: "sticky", top: 0, zIndex: 100 }}>
-        <button onClick={onBack} style={{ background: "none", border: "none", color: C.gold, fontSize: 22, cursor: "pointer" }}><</button>
+        <button onClick={onBack} style={{ background: "none", border: "none", color: C.gold, fontSize: 22, cursor: "pointer" }}>{"<"}</button>
         <div style={{ flex: 1 }}>
           <div style={{ color: C.gold, fontWeight: 800 }}>{label}</div>
           <div style={{ color: C.goldPale, fontSize: 11 }}>{activeTable.isTakeaway ? activeTable.takeawayNumber : `${activeTable.guests} guests`} - {activeTable.openedAt}</div>
@@ -665,7 +665,7 @@ const OrderPanel = ({ activeTable, setActiveTable, tables, setTables, menu, side
               <>
                 {openGroup && groups[openGroup] ? (
                   <>
-                    <button onClick={() => setOpenGroup(null)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", color: C.gold, fontWeight: 700, fontSize: 13, cursor: "pointer", padding: "4px 0 8px" }}>< {openGroup}</button>
+                    <button onClick={() => setOpenGroup(null)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", color: C.gold, fontWeight: 700, fontSize: 13, cursor: "pointer", padding: "4px 0 8px" }}>{`< ${openGroup}`}</button>
                     {groups[openGroup].map(renderItemCard)}
                   </>
                 ) : (
@@ -1209,7 +1209,7 @@ const CashierView = ({ tables, setTables, user }) => {
   if (selTable) return (
     <div style={{ minHeight: "100vh", background: C.purpleDark }}>
       <div style={{ background: selTable.isTakeaway ? C.teal : C.purple, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10, position: "sticky", top: 0, zIndex: 100 }}>
-        <button onClick={() => setSelectedTable(null)} style={{ background: "none", border: "none", color: C.gold, fontSize: 22, cursor: "pointer" }}><</button>
+        <button onClick={() => setSelectedTable(null)} style={{ background: "none", border: "none", color: C.gold, fontSize: 22, cursor: "pointer" }}>{"<"}</button>
         <div style={{ flex: 1 }}>
           <div style={{ color: C.gold, fontWeight: 800, fontSize: 16 }}>{selTable.isTakeaway ? `${selTable.takeawayNumber}` : `Table ${selTable.id}`}</div>
           <div style={{ color: C.goldPale, fontSize: 11 }}>{selTable.isTakeaway ? selTable.customerName : `${selTable.guests} guests`} - {selTable.openedAt}</div>
@@ -1576,7 +1576,7 @@ const FloorPlan = ({ tables, setTables, canReserve, canTransfer = false, addNoti
         )}
       </div>
       <div style={{ background: "#1e0d1a", borderRadius: 16, padding: "16px 12px", border: `2px solid ${C.purpleLight}`, marginBottom: 16 }}>
-        <div style={{ color: C.gray500, fontSize: 9, letterSpacing: 1, marginBottom: 12, textTransform: "uppercase" }}>< Window - Dining Floor - Kitchen ></div>
+        <div style={{ color: C.gray500, fontSize: 9, letterSpacing: 1, marginBottom: 12, textTransform: "uppercase" }}>{"< Window - Dining Floor - Kitchen >"}</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
           <div style={{ display: "flex", gap: 10 }}>{[1,2,3].map(id => <TableBtn key={id} id={id} />)}</div>
           <div style={{ display: "flex", gap: 10 }}>{[4,5,6].map(id => <TableBtn key={id} id={id} />)}</div>
